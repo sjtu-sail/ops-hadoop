@@ -21,7 +21,7 @@ public class EtcdService {
     public static synchronized void initClient() {
         if (null == client) {
 
-            client = Client.builder().endpoints("http://" + "127.0.0.1:2379").build();
+            client = Client.builder().endpoints("http://202.120.40.4:12379").build();
         }
     }
 
