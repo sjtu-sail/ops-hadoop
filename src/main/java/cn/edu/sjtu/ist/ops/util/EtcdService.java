@@ -7,6 +7,8 @@ import com.coreos.jetcd.lease.*;
 import com.coreos.jetcd.options.*;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.Properties;
+import java.io.FileInputStream;
 
 public class EtcdService {
     private static Client client = null;
@@ -20,7 +22,14 @@ public class EtcdService {
      */
     public static synchronized void initClient() {
         if (null == client) {
-
+            Properties pro = new Properties();
+            try {
+                FileInputStream in = new FileInputStream("ops.properties");
+                pro.load(in);
+                in.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             client = Client.builder().endpoints("http://202.120.40.4:12379").build();
         }
     }
