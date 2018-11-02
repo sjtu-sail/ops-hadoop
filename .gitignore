@@ -42,3 +42,7 @@ buildNumber.properties
 *.iml
 out
 gen
+.vscode
+.classpath
+.project
+.settings
