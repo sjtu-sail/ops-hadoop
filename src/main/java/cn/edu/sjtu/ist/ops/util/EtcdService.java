@@ -31,7 +31,8 @@ public class EtcdService {
             }
 
             client = Client.builder()
-                    .endpoints(props.get("etcd.host").toString() + ":" + props.get("etcd.port").toString()).build();
+                    .endpoints("https://" + props.get("etcd.host").toString() + ":" + props.get("etcd.port").toString())
+                    .build();
         }
     }
 
