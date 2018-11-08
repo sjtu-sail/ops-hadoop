@@ -56,14 +56,11 @@ public class EtcdService {
         return null;
     }
 
-    public static List<String> getAll(String key) {
+    public static List<String> getValueList(String key) {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
             return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream()
-                    .map(keyValue -> {
-                        String[] tokens = keyValue.getKey().toStringUtf8().split("/");
-                        return tokens[tokens.length - 1];
-                    }).skip(1).collect(Collectors.toList());
+                    .map(keyValue -> keyValue.getValue().toStringUtf8()).skip(1).collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -86,13 +83,14 @@ public class EtcdService {
      * @param ttl
      * @return
      */
-    public static long lease(String key, String value, long ttl) {
+    public static long lease(String prefix, String value, long ttl) {
         CompletableFuture<LeaseGrantResponse> leaseGrantResponse = client.getLeaseClient().grant(ttl);
         PutOption putOption;
         try {
             long leaseId = leaseGrantResponse.get().getID();
             putOption = PutOption.newBuilder().withLeaseId(leaseId).build();
-            client.getKVClient().put(ByteSequence.fromString(key), ByteSequence.fromString(value), putOption);
+            client.getKVClient().put(ByteSequence.fromString(prefix + String.valueOf(leaseId)),
+                    ByteSequence.fromString(value), putOption);
             return leaseGrantResponse.get().getID();
         } catch (Exception e) {
             e.printStackTrace();
@@ -123,9 +121,9 @@ public class EtcdService {
      * @param key
      * @param value
      */
-    public static void register(String key, String value) {
+    public static void register(String prefix, String value) {
         if (leaseId == 0) {
-            leaseId = lease(key, value, 10L);
+            leaseId = lease(prefix, value, 10L);
         } else {
             keepAliveOnce(leaseId);
         }

@@ -1,27 +1,33 @@
 package cn.edu.sjtu.ist.ops.util;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.watch.WatchEvent;
 import com.coreos.jetcd.watch.WatchResponse;
+import com.google.gson.Gson;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WatcherThread extends Thread {
-    private final static Logger logger = LoggerFactory.getLogger(WatcherThread.class.getName());
+import cn.edu.sjtu.ist.ops.common.OpsNode;
 
+public class WatcherThread extends Thread {
+
+    private final static Logger logger = LoggerFactory.getLogger(WatcherThread.class.getName());
+    private static Gson gson = new Gson();
     private String key;
-    private List<String> workers;
+    private List<OpsNode> workers;
 
     public WatcherThread(String key) {
         this.key = key;
-        this.workers = EtcdService.getAll(this.key);
+        this.workers = EtcdService.getValueList(this.key).stream().map(value -> gson.fromJson(value, OpsNode.class))
+                .collect(Collectors.toList());
         System.out.println(this.workers);
     }
 
-    public List<String> getWorkers() {
+    public List<OpsNode> getWorkers() {
         return this.workers;
     }
 
@@ -33,14 +39,13 @@ public class WatcherThread extends Thread {
                 WatchEvent event = response.getEvents().get(0);
                 switch (event.getEventType()) {
                 case PUT:
-                    String[] pTokens = event.getKeyValue().getKey().toStringUtf8().split("/");
-                    this.workers.add(pTokens[pTokens.length - 1]);
-                    logger.debug(workers.toString());
+                    this.workers.add(gson.fromJson(event.getKeyValue().getValue().toStringUtf8(), OpsNode.class));
+                    System.out.println(workers.toString());
                     break;
                 case DELETE:
-                    String[] dTokens = event.getKeyValue().getKey().toStringUtf8().split("/");
-                    this.workers.remove(dTokens[dTokens.length - 1]);
-                    logger.debug(workers.toString());
+                    // this.workers.remove(gson.fromJson(event.getKeyValue().getValue().toStringUtf8(),
+                    // OpsNode.class));
+                    System.out.println(event.getPrevKV().getValue());
                     break;
                 case UNRECOGNIZED:
                     break;
