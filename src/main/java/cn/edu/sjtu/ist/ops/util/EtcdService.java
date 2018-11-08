@@ -1,7 +1,6 @@
 package cn.edu.sjtu.ist.ops.util;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -10,11 +9,10 @@ import java.util.stream.Collectors;
 import com.coreos.jetcd.Client;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.data.ByteSequence;
-import com.coreos.jetcd.data.KeyValue;
 import com.coreos.jetcd.lease.LeaseGrantResponse;
-import com.coreos.jetcd.lease.LeaseKeepAliveResponse;
 import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
+import com.coreos.jetcd.options.WatchOption;
 
 public class EtcdService {
     private static Client client = null;
@@ -62,9 +60,10 @@ public class EtcdService {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
             return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream()
-                    .map((KeyValue keyValue) -> {
-                        return keyValue.getKey().toStringUtf8();
-                    }).collect(Collectors.toList());
+                    .map(keyValue -> {
+                        String[] tokens = keyValue.getKey().toStringUtf8().split("/");
+                        return tokens[tokens.length - 1];
+                    }).skip(1).collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -106,12 +105,17 @@ public class EtcdService {
      * @param leaseId
      */
     public static void keepAliveOnce(long leaseId) {
-        CompletableFuture<LeaseKeepAliveResponse> response = client.getLeaseClient().keepAliveOnce(leaseId);
-        System.out.println(response);
+        client.getLeaseClient().keepAliveOnce(leaseId);
     }
 
+    /**
+     * 
+     * @param key
+     * @return
+     */
     public static Watcher watch(String key) {
-        return client.getWatchClient().watch(ByteSequence.fromString(key));
+        WatchOption watchOption = WatchOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
+        return client.getWatchClient().watch(ByteSequence.fromString(key), watchOption);
     }
 
     /**

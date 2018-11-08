@@ -1,7 +1,5 @@
 package cn.edu.sjtu.ist.ops.util;
 
-import cn.edu.sjtu.ist.ops.util.EtcdService;
-
 public class HeartbeatThread extends Thread {
     private String key;
     private String value;

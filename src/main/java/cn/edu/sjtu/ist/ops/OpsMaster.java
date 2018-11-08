@@ -11,12 +11,12 @@ public class OpsMaster {
         EtcdService.initClient();
         // EtcdService.put("ops/test", "test");
         try {
-            // InetAddress addr = InetAddress.getLocalHost();
-            // HeartbeatThread thread = new HeartbeatThread("ops/nodes/master/" +
-            // addr.getHostAddress(),
-            // addr.getHostAddress());
-            WatcherThread thread = new WatcherThread("ops/nodes/worker/");
-            thread.start();
+            InetAddress addr = InetAddress.getLocalHost();
+            HeartbeatThread heartbeatThread = new HeartbeatThread("ops/nodes/master/" + addr.getHostAddress(),
+                    addr.getHostAddress());
+            WatcherThread watcherThread = new WatcherThread("ops/nodes/worker");
+            heartbeatThread.start();
+            watcherThread.start();
         } catch (Exception e) {
             e.printStackTrace();
         }
