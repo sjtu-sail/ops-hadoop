@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "cn.edu.sjtu.ist.ops";
+option java_outer_classname = "OpsInternalProto";
+option objc_class_prefix = "OPS";
+
+package opsinternal;
+
+service OpsInternal {
+    rpc Exchange (stream OpsRequest) returns (stream OpsResponse) {}
+}
+
+message OpsRequest {
+    string msg = 1;
+}
+
+message OpsResponse {
+    string msg = 1;
+}
