@@ -15,7 +15,7 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 
 public class WatcherThread extends Thread {
 
-    private final static Logger logger = LoggerFactory.getLogger(WatcherThread.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(WatcherThread.class);
     private static Gson gson = new Gson();
     private String key;
     private List<OpsNode> workers;
@@ -24,7 +24,7 @@ public class WatcherThread extends Thread {
         this.key = key;
         this.workers = EtcdService.getValueList(this.key).stream().map(value -> gson.fromJson(value, OpsNode.class))
                 .collect(Collectors.toList());
-        System.out.println(this.workers);
+        logger.debug(this.workers.toString());
     }
 
     public List<OpsNode> getWorkers() {
