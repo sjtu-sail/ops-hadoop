@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.coreos.jetcd.Client;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.data.ByteSequence;
+import com.coreos.jetcd.data.KeyValue;
 import com.coreos.jetcd.lease.LeaseGrantResponse;
 import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
@@ -56,11 +57,11 @@ public class EtcdService {
         return null;
     }
 
-    public static List<String> getValueList(String key) {
+    public static List<KeyValue> getKVs(String key) {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
-            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream()
-                    .map(keyValue -> keyValue.getValue().toStringUtf8()).skip(1).collect(Collectors.toList());
+            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream().skip(1)
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
         }
