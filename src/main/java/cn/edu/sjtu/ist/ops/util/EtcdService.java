@@ -1,11 +1,5 @@
 package cn.edu.sjtu.ist.ops.util;
 
-import java.io.InputStream;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
 import com.coreos.jetcd.Client;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.data.ByteSequence;
@@ -14,31 +8,32 @@ import com.coreos.jetcd.lease.LeaseGrantResponse;
 import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
 import com.coreos.jetcd.options.WatchOption;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class EtcdService {
     private static Client client = null;
     private static long leaseId = 0L;
-
-    public static Client getClient() {
-        return client;
-    }
 
     /**
      * 
      */
     public static synchronized void initClient() {
         if (null == client) {
-            ClassLoader loader = Thread.currentThread().getContextClassLoader();
-            Properties props = new Properties();
-            try (InputStream resourceStream = loader.getResourceAsStream("ops.properties")) {
-                props.load(resourceStream);
-            } catch (Exception e) {
+            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+            try {
+                OpsConf conf = mapper.readValue(
+                        Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConf.class);
+                client = Client.builder().endpoints(conf.getEtcd().getEndpoints().get(0).getHostname()+ ":" + String.valueOf(conf.getEtcd().getEndpoints().get(0).getPort()))
+                    .build();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
-
-            client = Client.builder()
-                    .endpoints("http://" + props.get("etcd.host").toString() + ":" + props.get("etcd.port").toString())
-                    .build();
         }
     }
 
@@ -79,7 +74,7 @@ public class EtcdService {
 
     /**
      * 
-     * @param key
+     * @param prefix
      * @param value
      * @param ttl
      * @return
@@ -119,7 +114,7 @@ public class EtcdService {
 
     /**
      * 
-     * @param key
+     * @param prefix
      * @param value
      */
     public static void register(String prefix, String value) {
