@@ -1,76 +1,46 @@
 package cn.edu.sjtu.ist.ops;
 
 import java.net.InetAddress;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import com.google.gson.Gson;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.stub.StreamObserver;
 
 public class OpsWorker {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsWorker.class);
-    private final ManagedChannel channel;
-    private final OpsInternalGrpc.OpsInternalStub asyncStub;
+    private OpsShuffleHandler shuffleHandler;
 
-    public OpsWorker(String host, int port) {
-        this(ManagedChannelBuilder.forAddress(host, port).usePlaintext());
+    public OpsWorker() {
+        OpsNode tmpNode = new OpsNode("localhost", "localhost");
+        OpsNode tmpNode1 = new OpsNode("localhost1", "localhost1");
+        OpsNode tmpNode2 = new OpsNode("localhost2", "localhost2");
+        OpsNode tmpNode3 = new OpsNode("localhost3", "localhost3");
+        OpsConf tmpConf = new OpsConf(tmpNode, new ArrayList<>(Arrays.asList(tmpNode1, tmpNode2, tmpNode3)));
+
+        shuffleHandler = new OpsShuffleHandler(tmpConf);
     }
 
-    public OpsWorker(ManagedChannelBuilder<?> channelBuilder) {
-        this.channel = channelBuilder.build();
-        this.asyncStub = OpsInternalGrpc.newStub(channel);
+    public void start() {
+        logger.info("Worker start");
+        this.shuffleHandler.start();
     }
 
-    public void shutdown() throws InterruptedException {
-        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
-    }
-
-    public CountDownLatch routeChat() {
-        final CountDownLatch finishLatch = new CountDownLatch(1);
-        StreamObserver<OpsRequest> requestObserver = asyncStub.exchange(new StreamObserver<OpsResponse>() {
-            @Override
-            public void onNext(OpsResponse response) {
-                logger.debug("OpsWorker: " + response.getMsg());
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                finishLatch.countDown();
-            }
-
-            @Override
-            public void onCompleted() {
-                finishLatch.countDown();
-            }
-        });
-
-        try {
-            OpsRequest request = OpsRequest.newBuilder().setMsg("OpsWorker").build();
-            requestObserver.onNext(request);
-        } catch (RuntimeException e) {
-            // Cancel RPC
-            requestObserver.onError(e);
-            throw e;
-        }
-        // Mark the end of requests
-        requestObserver.onCompleted();
-
-        // return the latch while receiving happens asynchronously
-        return finishLatch;
+    private void blockUntilShutdown() throws InterruptedException {
+        this.shuffleHandler.join();
     }
 
     public static void main(String[] args) throws InterruptedException {
-        OpsWorker opsWorker = new OpsWorker("localhost", 14000);
+        OpsWorker opsWorker = new OpsWorker();
         EtcdService.initClient();
 
         try {
@@ -80,15 +50,19 @@ public class OpsWorker {
             HeartbeatThread thread = new HeartbeatThread("ops/nodes/worker/", gson.toJson(worker));
             thread.start();
 
-            CountDownLatch finishLatch = opsWorker.routeChat();
+            opsWorker.start();
 
-            if (!finishLatch.await(1, TimeUnit.MINUTES)) {
-                logger.warn("exchange can not finish within 1 minutes");
-            }
+            // For test
+            TaskConf task = new TaskConf(true, "test_task_123", "test_job_123",
+                    new OpsNode("test_ip", "test_hostname"));
+            TaskConf task2 = new TaskConf(true, "test_task_222", "test_job_123",
+                    new OpsNode("test_ip", "test_hostname"));
+            opsWorker.shuffleHandler.taskComplete(task);
+            opsWorker.shuffleHandler.taskComplete(task2);
+
+            opsWorker.blockUntilShutdown();
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            opsWorker.shutdown();
         }
     }
 }

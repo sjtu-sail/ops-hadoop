@@ -12,7 +12,7 @@ public class JobStatus {
         this.jobConf = jobConf;
     }
 
-    public void mapCompleted(TaskConf task) {
+    public void mapTaskCompleted(TaskConf task) {
 
     }
 

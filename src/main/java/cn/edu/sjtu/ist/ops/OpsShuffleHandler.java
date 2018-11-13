@@ -1,23 +1,104 @@
 package cn.edu.sjtu.ist.ops;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import com.google.gson.Gson;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.TaskConf;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
+
 public class OpsShuffleHandler extends Thread {
+
+    private static final Logger logger = LoggerFactory.getLogger(OpsShuffleHandler.class);
     private volatile boolean stopped;
+    private final OpsConf opsConf;
 
-    public void OpsShuffleHandler() {
+    private final ManagedChannel channel;
+    private final OpsInternalGrpc.OpsInternalStub asyncStub;
+
+    public OpsShuffleHandler(OpsConf opsConf) {
         stopped = false;
+        this.opsConf = opsConf;
 
+        this.channel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
+                .usePlaintext().build();
+        this.asyncStub = OpsInternalGrpc.newStub(channel);
+    }
+
+    public void shutdown() throws InterruptedException {
+        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Override
     public void run() {
         try {
-            while (!stopped && !Thread.currentThread().isInterrupted()) {
-                wait();
-            
+
+            channel.wait();
+
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+    }
+
+    public void taskComplete(TaskConf task) {
+        StreamObserver<TaskMessage> requestObserver = asyncStub.onTaskComplete(new StreamObserver<TaskMessage>() {
+            @Override
+            public void onNext(TaskMessage msg) {
+                logger.info("ShuffleHandler: " + msg.getMsg());
+            }
+
+            @Override
+            public void onError(Throwable t) {
 
             }
-        } catch (InterruptedException e) {
-            //TODO: handle exception
+
+            @Override
+            public void onCompleted() {
+
+            }
+        });
+
+        try {
+            Gson gson = new Gson();
+            TaskMessage message = TaskMessage.newBuilder().setMsg(gson.toJson(task)).build();
+            requestObserver.onNext(message);
+        } catch (RuntimeException e) {
+            // Cancel RPC
+            requestObserver.onError(e);
+            throw e;
+        }
+        // Mark the end of requests
+        requestObserver.onCompleted();
+    }
+
+    private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
+        @Override
+        public StreamObserver<ShuffleMessage> onShuffle(StreamObserver<ShuffleMessage> responseObserver) {
+            return new StreamObserver<ShuffleMessage>() {
+                @Override
+                public void onNext(ShuffleMessage request) {
+                    // responseObserver.onNext(ShuffleMessage.newBuilder().setMsg("ShuffleMessage").build());
+                    logger.info("ShuffleHandler: " + request.getMsg());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    logger.warn("Encountered error in exchange", t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+                }
+            };
         }
     }
 }
