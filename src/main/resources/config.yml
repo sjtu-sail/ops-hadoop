@@ -1,0 +1,4 @@
+etcd:
+  endpoints:
+    - hostname:
+      port:
