@@ -1,3 +1,11 @@
+ops:
+  master:
+    hostname: ""
+    port: 10000
+  grpc:
+    master: 14010
+    worker: 14020
+
 etcd:
   endpoints:
     - hostname:

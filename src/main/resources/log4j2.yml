@@ -28,6 +28,6 @@ Configuration:
           - ref: STDOUT
           - ref: File
     Root:
-      level: debug
+      level: error
       AppenderRef:
         - ref: STDOUT
