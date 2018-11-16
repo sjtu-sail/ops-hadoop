@@ -4,13 +4,28 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>ops</groupId>
-    <artifactId>cn.edu.sjtu.ist</artifactId>
+    <groupId>cn.edu.sjtu.ist</groupId>
+    <artifactId>ops</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
     <name>OPS</name>
     <description>Optimized Shuffle</description>
     <url>https://github.com/sjtu-ist/OPS</url>
+    <inceptionYear>2018</inceptionYear>
+
+    <organization>
+        <name>SJTU IST Lab</name>
+        <url>http://ist.sjtu.edu.cn/</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -96,7 +111,9 @@
             <version>1.16.1</version>
         </dependency>
     </dependencies>
+
     <build>
+        <finalName>${project.artifactId}</finalName>
         <extensions>
             <extension>
                 <groupId>kr.motd.maven</groupId>
@@ -113,6 +130,9 @@
                     <source>1.8</source>
                     <target>1.8</target>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <showDeprecation>true</showDeprecation>
+                    <showWarnings>true</showWarnings>
+                    <optimize>true</optimize>
                 </configuration>
             </plugin>
             <plugin>
