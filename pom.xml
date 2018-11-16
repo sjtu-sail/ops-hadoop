@@ -27,6 +27,17 @@
         </license>
     </licenses>
 
+    <scm>
+        <url>https://github.com/apache/pulsar</url>
+        <connection>scm:git:https://github.com/sjtu-ist/OPS</connection>
+        <developerConnection>scm:git:ssh://git@github.com:sjtu-ist/OPS</developerConnection>
+    </scm>
+
+    <ciManagement>
+        <system>Travis</system>
+        <url>https://travis-ci.org/sjtu-ist/OPS</url>
+    </ciManagement>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -132,13 +143,27 @@
                     <encoding>${project.build.sourceEncoding}</encoding>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings>
-                    <optimize>true</optimize>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.1.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.1.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.0.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.0.0</version>
             </plugin>
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
