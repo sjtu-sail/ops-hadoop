@@ -16,23 +16,13 @@
 
 ### Architecture
 
-<center width="60%">
-
-![OPS Architecture](https://github.com/sjtu-ist/OPS/blob/master/pic/ops-Architecture.png)
-
-Figure 1: OPS Architecture
-
-</center>
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/pic/ops-Architecture.png" width="60%"/></p>
+<p align="center">Figure 1: OPS Architecture</p>
 
 ### Internal View
 
-<center width="80%">
-
-![OPS Architecture](https://github.com/sjtu-ist/OPS/blob/master/pic/ops-InternalView.png)
-
-Figure 2: Internal View Comparison between Legacy Hadoop and Hadoop with OPS
-
-</center>
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/pic/ops-InternalView.png" width="80%"/></p>
+<p align="center">Figure 2:  Internal View Comparison between Legacy Hadoop and Hadoop with OPS</p>
 
 ### Compatibility
 
@@ -43,7 +33,7 @@ We believe that the costs of enabling OPS on other DAG computing frameworks are 
 ## Build
 
 ```bash
-$ mvn install compile
+$ mvn clean install
 ```
 
 ## License
