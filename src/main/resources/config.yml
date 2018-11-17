@@ -1,3 +1,5 @@
+ops:
+  master:
 etcd:
   endpoints:
     - hostname:
