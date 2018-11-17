@@ -5,5 +5,13 @@ install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 script:
   - mvn test -B
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep-history: true
+  local_dir: target/site/apidocs
+  on:
+    branch: master
 notifications:
   email: false

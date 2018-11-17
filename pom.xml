@@ -192,7 +192,8 @@
                 <version>3.0.1</version>
                 <configuration>
                     <locale>en_US</locale>
-                    <charset>UTF-8</charset>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <charset>${project.build.sourceEncoding}</charset>
                 </configuration>
             </plugin>
             <plugin>

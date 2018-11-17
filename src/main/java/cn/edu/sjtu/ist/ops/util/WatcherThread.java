@@ -16,20 +16,18 @@
 
 package cn.edu.sjtu.ist.ops.util;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import cn.edu.sjtu.ist.ops.common.OpsNode;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.watch.WatchEvent;
 import com.coreos.jetcd.watch.WatchResponse;
 import com.google.gson.Gson;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cn.edu.sjtu.ist.ops.common.OpsNode;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class WatcherThread extends Thread {
 

@@ -16,22 +16,17 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import java.net.InetAddress;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.gson.Gson;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
-import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
+import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
 
 public class OpsWorker extends OpsNode {
 
