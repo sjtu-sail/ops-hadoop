@@ -1,5 +1,9 @@
 # OPS
 
+[![Build Status](https://travis-ci.org/sjtu-ist/OPS.svg?branch=master)](https://travis-ci.org/sjtu-ist/OPS)
+[![GitHub](https://img.shields.io/github/license/sjtu-ist/OPS.svg)](https://github.com/sjtu-ist/OPS/blob/master/LICENSE)
+
+
 **OP(timized)S(huffle)** is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks.
 
 - [System Overview](#system-overview)
@@ -29,9 +33,9 @@ We believe that the costs of enabling OPS on other DAG computing frameworks are 
 ## Build
 
 ```bash
-$ mvn compile
+$ mvn clean install
 ```
 
 ## License
 
-Apache License 2.0
+[Apache License 2.0](https://github.com/sjtu-ist/OPS/blob/master/LICENSE)
