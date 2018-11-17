@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class OpsConf {
+public class OpsConfig {
     @JsonProperty
     private Etcd etcd;
 

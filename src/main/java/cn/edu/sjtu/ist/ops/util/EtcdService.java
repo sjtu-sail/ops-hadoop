@@ -27,10 +27,11 @@ public class EtcdService {
         if (null == client) {
             ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
             try {
-                OpsConf conf = mapper.readValue(
-                        Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConf.class);
-                client = Client.builder().endpoints(conf.getEtcd().getEndpoints().get(0).getHostname()+ ":" + String.valueOf(conf.getEtcd().getEndpoints().get(0).getPort()))
-                    .build();
+                OpsConfig conf = mapper.readValue(
+                        Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"),
+                        OpsConfig.class);
+                client = Client.builder().endpoints(conf.getEtcd().getEndpoints().get(0).getHostname() + ":"
+                        + String.valueOf(conf.getEtcd().getEndpoints().get(0).getPort())).build();
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -52,7 +52,7 @@ public class OpsShuffleHandler extends Thread {
         StreamObserver<TaskMessage> requestObserver = asyncStub.onTaskComplete(new StreamObserver<TaskMessage>() {
             @Override
             public void onNext(TaskMessage msg) {
-                logger.info("ShuffleHandler: " + msg.getMsg());
+                logger.debug("ShuffleHandler: " + msg.getMsg());
             }
 
             @Override
@@ -86,7 +86,7 @@ public class OpsShuffleHandler extends Thread {
                 @Override
                 public void onNext(ShuffleMessage request) {
                     // responseObserver.onNext(ShuffleMessage.newBuilder().setMsg("ShuffleMessage").build());
-                    logger.info("ShuffleHandler: " + request.getMsg());
+                    logger.debug("ShuffleHandler: " + request.getMsg());
                 }
 
                 @Override

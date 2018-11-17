@@ -2,6 +2,7 @@ package cn.edu.sjtu.ist.ops;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -16,29 +17,36 @@ import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 
-public class OpsMaster {
+public class OpsMaster extends OpsNode {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsMaster.class);
-    
-    private OpsScheduler scheduler;
 
-    public OpsMaster() {
-        OpsNode tmpNode = new OpsNode("localhost", "localhost");
-        OpsNode tmpNode1 = new OpsNode("localhost1", "localhost1");
-        OpsNode tmpNode2 = new OpsNode("localhost2", "localhost2");
-        OpsNode tmpNode3 = new OpsNode("localhost3", "localhost3");
-        OpsConf tmpConf = new OpsConf(tmpNode, new ArrayList<>(Arrays.asList(tmpNode1, tmpNode2, tmpNode3)));
-        this.scheduler = new OpsScheduler(tmpConf);
-      
+    private OpsScheduler scheduler;
+    private HeartbeatThread heartbeat;
+    private WatcherThread watcher;
+
+    public OpsMaster(String ip, String hostname) {
+        super(ip, hostname);
+
+        Gson gson = new Gson();
+        this.heartbeat = new HeartbeatThread("ops/nodes/master/", gson.toJson(this));
+        this.watcher = new WatcherThread("ops/nodes/worker");
+
+        OpsConf opsConf = new OpsConf(this, this.watcher.getWorkers());
+        this.scheduler = new OpsScheduler(opsConf, this.watcher);
+
     }
 
-    public void start() {
+    public void start() throws UnknownHostException {
+        this.heartbeat.start();
+        this.watcher.start();
+
         logger.info("Master start");
         this.scheduler.start();
     }
 
     public void stop() {
-        
+
     }
 
     private void blockUntilShutdown() throws InterruptedException {
@@ -46,25 +54,18 @@ public class OpsMaster {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        OpsMaster opsMaster = new OpsMaster();
         EtcdService.initClient();
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            OpsNode master = new OpsNode(addr.getHostAddress(), addr.getHostName());
-            Gson gson = new Gson();
-            HeartbeatThread heartbeatThread = new HeartbeatThread("ops/nodes/master/", gson.toJson(master));
-            WatcherThread watcherThread = new WatcherThread("ops/nodes/worker");
-            heartbeatThread.start();
-            watcherThread.start();
+            OpsMaster opsMaster = new OpsMaster(addr.getHostAddress(), addr.getHostName());
 
             opsMaster.start();
             opsMaster.blockUntilShutdown();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    
 }

@@ -12,6 +12,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.JobStatus;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
+import cn.edu.sjtu.ist.ops.util.WatcherThread;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -24,13 +25,15 @@ public class OpsScheduler extends Thread {
     private final Server server;
 
     private OpsConf opsConf;
+    private WatcherThread watcherThread;
     private HashMap<String, JobStatus> jobs;
     private volatile boolean stopped;
     private ArrayList<TaskConf> pendingMaps;
     private int pendingMapsIndex;
 
-    public OpsScheduler(OpsConf conf) {
+    public OpsScheduler(OpsConf conf, WatcherThread watcher) {
         this.opsConf = conf;
+        this.watcherThread = watcher;
         this.stopped = false;
         this.jobs = new HashMap<>();
         this.pendingMaps = new ArrayList<>();
@@ -63,20 +66,25 @@ public class OpsScheduler extends Thread {
         for (int i = this.pendingMapsIndex; i < this.pendingMaps.size(); i++) {
             this.pendingMapsIndex++;
 
-            logger.info("Do Shuffle");
+            logger.debug("Do Shuffle");
             // TODO: Use gRPC to notify ShuffleHandler.
         }
 
     }
 
     public void registJob(JobConf job) {
+        updateWorkers();
         jobs.put(job.getJobId(), new JobStatus(job));
 
     }
 
+    private void updateWorkers() {
+        this.opsConf.setWorkers(this.watcherThread.getWorkers());
+    }
+
     public void taskComplete(TaskConf task) {
         JobStatus job = jobs.get(task.getJobId());
-        logger.info("Task " + task.getTaskId() + " completed");
+        logger.debug("Task " + task.getTaskId() + " completed");
         if (task.getIsMap()) {
             // job.mapTaskCompleted(task);
             this.pendingMaps.add(task);
@@ -94,7 +102,7 @@ public class OpsScheduler extends Thread {
                     responseObserver.onNext(TaskMessage.newBuilder().setMsg("Response taskComplete").build());
                     Gson gson = new Gson();
                     TaskConf task = gson.fromJson(request.getMsg(), TaskConf.class);
-                    logger.info("OpsScheduler: " + task.toString());
+                    logger.debug("OpsScheduler: " + task.toString());
                     taskComplete(task);
                 }
 
