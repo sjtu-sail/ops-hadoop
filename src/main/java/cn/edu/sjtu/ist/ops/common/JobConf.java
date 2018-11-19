@@ -16,15 +16,25 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
+import java.util.List;
+import java.util.ArrayList;
+
 public class JobConf {
     private final String jobId;
     private final int numMap;
     private final int numReduce;
+    private List<OpsNode> reduceNodes;
 
     public JobConf(String id, int map, int reduce) {
         this.jobId = id;
         this.numMap = map;
         this.numReduce = reduce;
+    }
+
+    public List<OpsNode> getReduceNodes() {
+        // TODO: Do pre-scheduling
+
+        return new ArrayList<>();
     }
 
     public String getJobId() {
@@ -38,5 +48,5 @@ public class JobConf {
     public int getNumReduce() {
         return this.numReduce;
     }
-     
+
 }

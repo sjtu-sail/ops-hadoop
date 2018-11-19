@@ -19,38 +19,52 @@ package cn.edu.sjtu.ist.ops;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.JobStatus;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 import com.google.gson.Gson;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 public class OpsScheduler extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsScheduler.class);
 
     private final Server server;
+    private Map<String, ManagedChannel> workerChannels;
+    private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
 
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobStatus> jobs;
     private volatile boolean stopped;
-    private ArrayList<TaskConf> pendingMaps;
-    private int pendingMapsIndex;
+    private Set<TaskConf> pendingTasks;
+    private final Random random = new Random();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
         this.jobs = new HashMap<>();
-        this.pendingMaps = new ArrayList<>();
-        this.pendingMapsIndex = 0;
+        this.pendingTasks = new HashSet<>();
+        this.workerChannels = new HashMap<>();
+        this.workerStubs = new HashMap<>();
+
+        setupWorkersRPC();
 
         this.server = ServerBuilder.forPort(this.opsConf.getPortMasterGRPC()).addService(new OpsInternalService())
                 .build();
@@ -60,10 +74,14 @@ public class OpsScheduler extends Thread {
     public void run() {
         try {
             this.server.start();
-            logger.info("Server started, listening on " + this.opsConf.getPortMasterGRPC());
+            logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
-            server.awaitTermination();
-
+            while (!stopped && !Thread.currentThread().isInterrupted()) {
+                TaskConf task = null;
+                task = this.getPendingTask();
+                onShuffle(task);
+            }
+            // server.awaitTermination();
         } catch (InterruptedException e) {
             // TODO: handle exception
         } catch (Exception e) {
@@ -75,32 +93,122 @@ public class OpsScheduler extends Thread {
         }
     }
 
-    public void shuffle() {
-        for (int i = this.pendingMapsIndex; i < this.pendingMaps.size(); i++) {
-            this.pendingMapsIndex++;
-
-            logger.debug("Do Shuffle");
-            // TODO: Use gRPC to notify ShuffleHandler.
+    public synchronized TaskConf getPendingTask() throws InterruptedException {
+        while (pendingTasks.isEmpty()) {
+            wait();
         }
 
+        TaskConf task = null;
+        Iterator<TaskConf> iter = pendingTasks.iterator();
+        int numToPick = random.nextInt(pendingTasks.size());
+        for (int i = 0; i <= numToPick; ++i) {
+            task = iter.next();
+        }
+
+        pendingTasks.remove(task);
+
+        logger.debug("Assigning " + task.toString());
+        return task;
+    }
+
+    public void setupWorkersRPC() {
+        for (OpsNode worker : this.watcherThread.getWorkers()) {
+            if (!this.workerChannels.containsKey(worker.getIp()) || !this.workerStubs.containsKey(worker.getIp())) {
+                ManagedChannel channel = ManagedChannelBuilder
+                        .forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC()).usePlaintext().build();
+                OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
+                this.workerChannels.put(worker.getIp(), channel);
+                this.workerStubs.put(worker.getIp(), asyncStub);
+                logger.debug("Setup gRPC " + worker.toString());
+            }
+        }
+    }
+
+    public void onShuffle(TaskConf task) {
+        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
+            setupWorkersRPC();
+        }
+        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
+            logger.error("Worker not found.");
+            return;
+        }
+
+        StreamObserver<ShuffleMessage> requestObserver = this.workerStubs.get(task.getOpsNode().getIp())
+                .onShuffle(new StreamObserver<ShuffleMessage>() {
+                    @Override
+                    public void onNext(ShuffleMessage msg) {
+                        logger.debug("");
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+
+                    }
+
+                    @Override
+                    public void onCompleted() {
+
+                    }
+                });
+        try {
+            Gson gson = new Gson();
+            ShuffleMessage message = ShuffleMessage.newBuilder().setTaskConf(gson.toJson(task)).build();
+            requestObserver.onNext(message);
+        } catch (RuntimeException e) {
+            // Cancel RPC
+            requestObserver.onError(e);
+            throw e;
+        }
+        // Mark the end of requests
+        requestObserver.onCompleted();
     }
 
     public void registJob(JobConf job) {
         updateWorkers();
         jobs.put(job.getJobId(), new JobStatus(job));
 
+        for (OpsInternalGrpc.OpsInternalStub stub : this.workerStubs.values()) {
+            StreamObserver<JobMessage> requestObserver = stub.registerJob(new StreamObserver<JobMessage>() {
+                @Override
+                public void onNext(JobMessage msg) {
+                    logger.debug("");
+                }
+
+                @Override
+                public void onError(Throwable t) {
+
+                }
+
+                @Override
+                public void onCompleted() {
+
+                }
+            });
+            try {
+                Gson gson = new Gson();
+                JobMessage message = JobMessage.newBuilder().setJobConf(gson.toJson(job)).build();
+                requestObserver.onNext(message);
+            } catch (RuntimeException e) {
+                // Cancel RPC
+                requestObserver.onError(e);
+                throw e;
+            }
+            // Mark the end of requests
+            requestObserver.onCompleted();
+        }
     }
 
     private void updateWorkers() {
         this.opsConf.setWorkers(this.watcherThread.getWorkers());
     }
 
-    public void taskComplete(TaskConf task) {
+    public synchronized void taskComplete(TaskConf task) {
         JobStatus job = jobs.get(task.getJobId());
         logger.debug("Task " + task.getTaskId() + " completed");
         if (task.getIsMap()) {
             // job.mapTaskCompleted(task);
-            this.pendingMaps.add(task);
+            this.pendingTasks.add(task);
+            notifyAll();
         } else {
             // job.reduceCompleted(task);
         }
@@ -112,9 +220,9 @@ public class OpsScheduler extends Thread {
             return new StreamObserver<TaskMessage>() {
                 @Override
                 public void onNext(TaskMessage request) {
-                    responseObserver.onNext(TaskMessage.newBuilder().setMsg("Response taskComplete").build());
+                    responseObserver.onNext(TaskMessage.newBuilder().setTaskConf("Response taskComplete").build());
                     Gson gson = new Gson();
-                    TaskConf task = gson.fromJson(request.getMsg(), TaskConf.class);
+                    TaskConf task = gson.fromJson(request.getTaskConf(), TaskConf.class);
                     logger.debug("OpsScheduler: " + task.toString());
                     taskComplete(task);
                 }
