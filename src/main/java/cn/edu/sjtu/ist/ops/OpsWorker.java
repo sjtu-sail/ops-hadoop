@@ -21,8 +21,11 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
+import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,11 +45,17 @@ public class OpsWorker extends OpsNode {
         this.heartbeat = new HeartbeatThread("ops/nodes/worker/", gson.toJson(this));
         this.watcher = new WatcherThread("ops/nodes/worker");
 
-        // TODO: get Master from etcd
-        OpsNode master = new OpsNode("localhost", "localhost");
-        OpsConf opsConf = new OpsConf(master, this.watcher.getWorkers());
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        try {
+            OpsConfig opsConfig = mapper.readValue(
+                    Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
+            OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
+            OpsConf opsConf = new OpsConf(master, this.watcher.getWorkers());
 
-        shuffleHandler = new OpsShuffleHandler(opsConf);
+            shuffleHandler = new OpsShuffleHandler(opsConf);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void start() {
@@ -71,10 +80,8 @@ public class OpsWorker extends OpsNode {
             opsWorker.start();
 
             // For test
-            TaskConf task = new TaskConf(true, "test_task_123", "test_job_123",
-                    new OpsNode("test_ip", "test_hostname"));
-            TaskConf task2 = new TaskConf(true, "test_task_222", "test_job_123",
-                    new OpsNode("test_ip", "test_hostname"));
+            TaskConf task = new TaskConf(true, "task1", "job1", opsWorker);
+            TaskConf task2 = new TaskConf(true, "task2", "job1", opsWorker);
             opsWorker.shuffleHandler.taskComplete(task);
             opsWorker.shuffleHandler.taskComplete(task2);
 

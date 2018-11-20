@@ -21,6 +21,8 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.JobStatus;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
+import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+
 import com.google.gson.Gson;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -150,10 +152,11 @@ public class OpsShuffleHandler extends Thread {
 
                     Gson gson = new Gson();
                     TaskConf task = gson.fromJson(request.getTaskConf(), TaskConf.class);
-                    List<OpsNode> nodes = jobs.get(task.getJobId()).getReduceNodes();
-                    pendingShuffles.add(new ShuffleConf(task, nodes));
+                    JobConf job = jobs.get(task.getJobId());
+                    TaskPreAlloc preAlloc = job.getReducePreAlloc();
+                    pendingShuffles.add(new ShuffleConf(task, preAlloc));
 
-                    logger.debug("onShuffle: taskConf: " + request.getTaskConf() + " dstNodes: " + nodes.toString());
+                    logger.debug("onShuffle: taskConf: " + request.getTaskConf() + " dstNodes: " + preAlloc.toString());
                 }
 
                 @Override
@@ -193,19 +196,19 @@ public class OpsShuffleHandler extends Thread {
 
     private class ShuffleConf {
         private TaskConf taskConf;
-        private List<OpsNode> dstNodes;
+        private TaskPreAlloc preAlloc;
 
-        public ShuffleConf(TaskConf taskConf, List<OpsNode> dstNodes) {
+        public ShuffleConf(TaskConf taskConf, TaskPreAlloc preAlloc) {
             this.taskConf = taskConf;
-            this.dstNodes = dstNodes;
+            this.preAlloc = preAlloc;
         }
 
         public TaskConf getTaskConf() {
             return this.taskConf;
         }
 
-        public List<OpsNode> getDstNodes() {
-            return this.dstNodes;
+        public TaskPreAlloc getPreAlloc() {
+            return this.preAlloc;
         }
 
         @Override

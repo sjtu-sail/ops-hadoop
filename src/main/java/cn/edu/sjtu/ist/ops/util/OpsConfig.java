@@ -34,6 +34,10 @@ public class OpsConfig {
     public Etcd getEtcd() {
         return etcd;
     }
+
+    public String getMasterHostName() {
+        return this.ops.getMaster().getHostname();
+    }
 }
 
 class Ops {

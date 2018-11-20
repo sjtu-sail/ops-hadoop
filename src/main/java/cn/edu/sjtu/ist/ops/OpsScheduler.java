@@ -50,7 +50,7 @@ public class OpsScheduler extends Thread {
 
     private OpsConf opsConf;
     private WatcherThread watcherThread;
-    private HashMap<String, JobStatus> jobs;
+    private HashMap<String, JobConf> jobs;
     private volatile boolean stopped;
     private Set<TaskConf> pendingTasks;
     private final Random random = new Random();
@@ -165,7 +165,7 @@ public class OpsScheduler extends Thread {
 
     public void registJob(JobConf job) {
         updateWorkers();
-        jobs.put(job.getJobId(), new JobStatus(job));
+        jobs.put(job.getJobId(), job);
 
         for (OpsInternalGrpc.OpsInternalStub stub : this.workerStubs.values()) {
             StreamObserver<JobMessage> requestObserver = stub.registerJob(new StreamObserver<JobMessage>() {
@@ -203,7 +203,7 @@ public class OpsScheduler extends Thread {
     }
 
     public synchronized void taskComplete(TaskConf task) {
-        JobStatus job = jobs.get(task.getJobId());
+        JobConf job = jobs.get(task.getJobId());
         logger.debug("Task " + task.getTaskId() + " completed");
         if (task.getIsMap()) {
             // job.mapTaskCompleted(task);

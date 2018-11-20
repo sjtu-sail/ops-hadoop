@@ -17,24 +17,22 @@
 package cn.edu.sjtu.ist.ops.common;
 
 import java.util.List;
-import java.util.ArrayList;
 
 public class JobConf {
     private final String jobId;
     private final int numMap;
     private final int numReduce;
-    private List<OpsNode> reduceNodes;
+    private final TaskPreAlloc reducePreAlloc;
 
-    public JobConf(String id, int map, int reduce) {
+    public JobConf(String id, int map, int reduce, List<OpsNode> nodes) {
         this.jobId = id;
         this.numMap = map;
         this.numReduce = reduce;
+        this.reducePreAlloc = new TaskPreAlloc(numReduce, nodes);
     }
 
-    public List<OpsNode> getReduceNodes() {
-        // TODO: Do pre-scheduling
-
-        return new ArrayList<>();
+    public TaskPreAlloc getReducePreAlloc() {
+        return this.reducePreAlloc;
     }
 
     public String getJobId() {
