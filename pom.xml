@@ -39,6 +39,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
@@ -170,8 +171,8 @@
                 <version>3.0.1</version>
                 <configuration>
                     <locale>en_US</locale>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <charset>${project.build.sourceEncoding}</charset>
+                    <encoding>${project.reporting.outputEncoding}</encoding>
+                    <charset>${project.reporting.outputEncoding}</charset>
                 </configuration>
             </plugin>
             <plugin>
@@ -216,8 +217,8 @@
                 <version>3.0.1</version>
                 <configuration>
                     <locale>en_US</locale>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <charset>${project.build.sourceEncoding}</charset>
+                    <encoding>${project.reporting.outputEncoding}</encoding>
+                    <charset>${project.reporting.outputEncoding}</charset>
                 </configuration>
             </plugin>
             <plugin>
