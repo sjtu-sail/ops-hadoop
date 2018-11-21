@@ -80,8 +80,9 @@ public class OpsWorker extends OpsNode {
             opsWorker.start();
 
             // For test
-            TaskConf task = new TaskConf(true, "task1", "job1", opsWorker);
-            TaskConf task2 = new TaskConf(true, "task2", "job1", opsWorker);
+            OpsNode node = new OpsNode(opsWorker.getIp(), opsWorker.getHostname());
+            TaskConf task = new TaskConf(true, "task1", "job1", node);
+            TaskConf task2 = new TaskConf(true, "task2", "job1", node);
             opsWorker.shuffleHandler.taskComplete(task);
             opsWorker.shuffleHandler.taskComplete(task2);
 
