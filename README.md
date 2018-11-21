@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/github/license/sjtu-ist/OPS.svg)](https://github.com/sjtu-ist/OPS/blob/master/LICENSE)
 
 
-**OP(timized)S(huffle)** is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks.
+**OP(timized) S(huffle)** is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks. The name [**OPS**](https://en.wikipedia.org/wiki/Ops) is originated from the ancient Roman religion, she was a fertility deity and earth goddess of Sabine origin. 
 
 - [System Overview](#system-overview)
   - [Architecture](#architecture)
@@ -34,6 +34,24 @@ We believe that the costs of enabling OPS on other DAG computing frameworks are 
 
 ```bash
 $ mvn clean install
+```
+
+## Run
+
+```bash
+OPS: Optimized Shuffle
+
+Usage:
+  ops.sh [command]
+
+Commands:
+  master         OpsMaster
+  worker         OpsWorker
+
+Options:
+  -h, --help     Show usage
+
+Use ops.sh [command] --help for more information about a command.
 ```
 
 ## License
