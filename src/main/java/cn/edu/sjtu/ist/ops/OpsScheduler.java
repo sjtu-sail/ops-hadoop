@@ -163,7 +163,7 @@ public class OpsScheduler extends Thread {
         requestObserver.onCompleted();
     }
 
-    public void registJob(JobConf job) {
+    public void registerJob(JobConf job) {
         updateWorkers();
         jobs.put(job.getJobId(), job);
 
