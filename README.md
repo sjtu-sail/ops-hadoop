@@ -3,26 +3,33 @@
 [![Build Status](https://travis-ci.org/sjtu-ist/OPS.svg?branch=master)](https://travis-ci.org/sjtu-ist/OPS)
 [![GitHub](https://img.shields.io/github/license/sjtu-ist/OPS.svg)](https://github.com/sjtu-ist/OPS/blob/master/LICENSE)
 
-
 **OP(timized) S(huffle)** is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks. The name [**OPS**](https://en.wikipedia.org/wiki/Ops) is originated from the ancient Roman religion, she was a fertility deity and earth goddess of Sabine origin. 
 
-- [System Overview](#system-overview)
-  - [Architecture](#architecture)
-  - [Internal View](#internal-view)
-  - [Compatibility](#compatibility)
-- [Build](#build)
+- [OPS](#ops)
+    - [System Overview](#system-overview)
+        - [Architecture](#architecture)
+        - [Internal View](#internal-view)
+        - [LifeCycle](#lifecycle)
+        - [Compatibility](#compatibility)
+    - [Build](#build)
+    - [License](#license)
 
 ## System Overview
 
 ### Architecture
 
-<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/pic/ops-Architecture.png" width="60%"/></p>
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-Architecture.png" width="60%"/></p>
 <p align="center">Figure 1: OPS Architecture</p>
 
 ### Internal View
 
-<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/pic/ops-InternalView.png" width="80%"/></p>
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-InternalView.png" width="80%"/></p>
 <p align="center">Figure 2:  Internal View Comparison between Legacy Hadoop and Hadoop with OPS</p>
+
+### LifeCycle
+
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-LifeCycle.png" width="80%"/></p>
+<p align="center">Figure 3:  Lifecyle of OPS</p>
 
 ### Compatibility
 
