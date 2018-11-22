@@ -179,6 +179,7 @@ public class OpsShuffleHandler extends Thread {
                     Gson gson = new Gson();
                     JobConf job = gson.fromJson(request.getJobConf(), JobConf.class);
                     jobs.put(job.getJobId(), job);
+                    logger.info("Get job: " + job.toString());
                 }
 
                 @Override
