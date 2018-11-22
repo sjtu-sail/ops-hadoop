@@ -16,6 +16,7 @@ function print_usage() {
 	echo -e "${UNDERLINE}Commands:${END}"
 	echo -e "  ${GREEN}master${END}         OpsMaster"
 	echo -e "  ${GREEN}worker${END}         OpsWorker"
+	echo -e "  ${GREEN}client${END}         OpsClient"
 	echo
 	echo -e "${UNDERLINE}Options:${END}"
 	echo -e "  ${BLUE}-h, --help${END}     Show usage"
@@ -41,9 +42,10 @@ cd ..
 
 if [[ -f target/ops.jar ]]; then
 	case $1 in
-	master | worker)
+	master | worker | client)
 		export CLASSPATH=target/ops.jar
-		exec ./scripts/ops-$1.sh $2
+		params=($@)
+		exec ./scripts/ops-$1.sh ${params[@]:1}
 		;;
 	--help | -h | *)
 		print_usage
