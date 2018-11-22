@@ -17,7 +17,6 @@
 package cn.edu.sjtu.ist.ops;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
-import cn.edu.sjtu.ist.ops.common.JobStatus;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
@@ -31,8 +30,6 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -45,15 +42,14 @@ public class OpsScheduler extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(OpsScheduler.class);
 
     private final Server server;
+    private final Random random = new Random();
     private Map<String, ManagedChannel> workerChannels;
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
-
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs;
     private volatile boolean stopped;
     private Set<TaskConf> pendingTasks;
-    private final Random random = new Random();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
         this.opsConf = conf;
@@ -72,6 +68,7 @@ public class OpsScheduler extends Thread {
 
     @Override
     public void run() {
+        this.setName("ops-scheduler");
         try {
             this.server.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
@@ -115,7 +112,7 @@ public class OpsScheduler extends Thread {
         for (OpsNode worker : this.watcherThread.getWorkers()) {
             if (!this.workerChannels.containsKey(worker.getIp()) || !this.workerStubs.containsKey(worker.getIp())) {
                 ManagedChannel channel = ManagedChannelBuilder
-                        .forAddress(opsConf.getMaster().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
+                        .forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC()).usePlaintext().build();
                 OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
                 this.workerChannels.put(worker.getIp(), channel);
                 this.workerStubs.put(worker.getIp(), asyncStub);
@@ -137,7 +134,7 @@ public class OpsScheduler extends Thread {
                 .onShuffle(new StreamObserver<ShuffleMessage>() {
                     @Override
                     public void onNext(ShuffleMessage msg) {
-                        logger.debug("onShuffle response");
+                        logger.debug("");
                     }
 
                     @Override

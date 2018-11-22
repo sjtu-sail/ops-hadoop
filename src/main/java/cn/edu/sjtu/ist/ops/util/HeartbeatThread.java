@@ -26,6 +26,7 @@ public class HeartbeatThread extends Thread {
     }
 
     public void run() {
+        this.setName("ops-heartbeat");
         while (true) {
             EtcdService.register(this.prefix, this.value);
             try {
