@@ -161,12 +161,12 @@ public class OpsScheduler extends Thread {
         requestObserver.onCompleted();
     }
 
-    public void ditributeJob(JobConf job) {
+    public void distributeJob(JobConf job) {
         updateWorkers();
         jobs.put(job.getJobId(), job);
 
         for (OpsInternalGrpc.OpsInternalStub stub : this.workerStubs.values()) {
-            StreamObserver<JobMessage> requestObserver = stub.ditributeJob(new StreamObserver<JobMessage>() {
+            StreamObserver<JobMessage> requestObserver = stub.distributeJob(new StreamObserver<JobMessage>() {
                 @Override
                 public void onNext(JobMessage msg) {
                     logger.debug("");

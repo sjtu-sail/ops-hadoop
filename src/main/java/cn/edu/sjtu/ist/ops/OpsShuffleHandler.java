@@ -172,7 +172,7 @@ public class OpsShuffleHandler extends Thread {
         }
 
         @Override
-        public StreamObserver<JobMessage> ditributeJob(StreamObserver<JobMessage> responseObserver) {
+        public StreamObserver<JobMessage> distributeJob(StreamObserver<JobMessage> responseObserver) {
             return new StreamObserver<JobMessage>() {
                 @Override
                 public void onNext(JobMessage request) {
