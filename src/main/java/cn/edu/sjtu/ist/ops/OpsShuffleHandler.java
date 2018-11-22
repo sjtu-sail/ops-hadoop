@@ -16,13 +16,10 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import cn.edu.sjtu.ist.ops.common.OpsConf;
-import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.JobConf;
-import cn.edu.sjtu.ist.ops.common.JobStatus;
+import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
-
 import com.google.gson.Gson;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -32,14 +29,12 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeUnit;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class OpsShuffleHandler extends Thread {
 
@@ -73,6 +68,7 @@ public class OpsShuffleHandler extends Thread {
 
     @Override
     public void run() {
+        this.setName("ops-shuffle-handler");
         try {
             this.server.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortWorkerGRPC());

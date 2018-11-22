@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/sjtu-ist/OPS.svg?branch=master)](https://travis-ci.org/sjtu-ist/OPS)
 [![GitHub](https://img.shields.io/github/license/sjtu-ist/OPS.svg)](https://github.com/sjtu-ist/OPS/blob/master/LICENSE)
 
-**OP(timized) S(huffle)** is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks. The name [**OPS**](https://en.wikipedia.org/wiki/Ops) is originated from the ancient Roman religion, she was a fertility deity and earth goddess of Sabine origin. 
+**OP**timized **S**huffle is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks. The name [**OPS**](https://en.wikipedia.org/wiki/Ops) is originated from the ancient Roman religion, she was a fertility deity and earth goddess of Sabine origin. 
 
 - [OPS](#ops)
     - [System Overview](#system-overview)

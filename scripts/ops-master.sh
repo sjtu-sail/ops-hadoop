@@ -30,7 +30,7 @@ if [[ ${CLASSPATH} ]]; then
 		java -cp ${CLASSPATH} cn.edu.sjtu.ist.ops.${CLASS}
 		;;
 	stop)
-		PID=$(ps -ef | grep ${CLASS} | grep -v grep | awk '{print $2}')
+		PID=$(ps -ef | grep ${CLASS} | grep -v grep | awk '{print $2}' | head -1)
 		if kill -0 ${PID} >/dev/null 2>&1; then
 			echo Stopping ${CLASS}
 			kill ${PID}

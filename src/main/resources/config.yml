@@ -1,6 +1,6 @@
 ops:
   master:
-    hostname: ""
+    hostname: "localhost"
     port: 10000
   grpc:
     master: 14010

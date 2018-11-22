@@ -49,6 +49,7 @@ public class WatcherThread extends Thread {
     }
 
     public void run() {
+        this.setName("ops-watcher");
         Watcher watcher = EtcdService.watch(this.key);
         while (true) {
             try {
