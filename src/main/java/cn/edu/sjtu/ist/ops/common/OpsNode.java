@@ -44,4 +44,14 @@ public class OpsNode implements Serializable {
     public String toString() {
         return new Gson().toJson(this);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof OpsNode)) {
+            return false;
+        }
+        OpsNode node = (OpsNode) obj;
+        return this.ip.equals(node.getIp());
+    }
+
 }

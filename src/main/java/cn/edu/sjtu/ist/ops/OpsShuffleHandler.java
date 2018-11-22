@@ -152,6 +152,10 @@ public class OpsShuffleHandler extends Thread {
 
                     Gson gson = new Gson();
                     TaskConf task = gson.fromJson(request.getTaskConf(), TaskConf.class);
+                    if (!jobs.containsKey(task.getJobId())) {
+                        logger.error("JobId not found: " + task.getJobId());
+                        return;
+                    }
                     JobConf job = jobs.get(task.getJobId());
                     TaskPreAlloc preAlloc = job.getReducePreAlloc();
                     pendingShuffles.add(new ShuffleConf(task, preAlloc));
@@ -172,7 +176,7 @@ public class OpsShuffleHandler extends Thread {
         }
 
         @Override
-        public StreamObserver<JobMessage> registerJob(StreamObserver<JobMessage> responseObserver) {
+        public StreamObserver<JobMessage> ditributeJob(StreamObserver<JobMessage> responseObserver) {
             return new StreamObserver<JobMessage>() {
                 @Override
                 public void onNext(JobMessage request) {

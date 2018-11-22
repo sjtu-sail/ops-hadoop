@@ -115,7 +115,7 @@ public class OpsScheduler extends Thread {
         for (OpsNode worker : this.watcherThread.getWorkers()) {
             if (!this.workerChannels.containsKey(worker.getIp()) || !this.workerStubs.containsKey(worker.getIp())) {
                 ManagedChannel channel = ManagedChannelBuilder
-                        .forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC()).usePlaintext().build();
+                        .forAddress(opsConf.getMaster().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
                 OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
                 this.workerChannels.put(worker.getIp(), channel);
                 this.workerStubs.put(worker.getIp(), asyncStub);
@@ -137,7 +137,7 @@ public class OpsScheduler extends Thread {
                 .onShuffle(new StreamObserver<ShuffleMessage>() {
                     @Override
                     public void onNext(ShuffleMessage msg) {
-                        logger.debug("");
+                        logger.debug("onShuffle response");
                     }
 
                     @Override
@@ -152,6 +152,7 @@ public class OpsScheduler extends Thread {
                 });
         try {
             Gson gson = new Gson();
+            logger.debug("Shuffle task: " + task.toString());
             ShuffleMessage message = ShuffleMessage.newBuilder().setTaskConf(gson.toJson(task)).build();
             requestObserver.onNext(message);
         } catch (RuntimeException e) {
@@ -163,12 +164,12 @@ public class OpsScheduler extends Thread {
         requestObserver.onCompleted();
     }
 
-    public void registerJob(JobConf job) {
+    public void ditributeJob(JobConf job) {
         updateWorkers();
         jobs.put(job.getJobId(), job);
 
         for (OpsInternalGrpc.OpsInternalStub stub : this.workerStubs.values()) {
-            StreamObserver<JobMessage> requestObserver = stub.registerJob(new StreamObserver<JobMessage>() {
+            StreamObserver<JobMessage> requestObserver = stub.ditributeJob(new StreamObserver<JobMessage>() {
                 @Override
                 public void onNext(JobMessage msg) {
                     logger.debug("");
@@ -215,6 +216,31 @@ public class OpsScheduler extends Thread {
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
+        @Override
+        public StreamObserver<JobMessage> registerJob(StreamObserver<JobMessage> responseObserver) {
+            return new StreamObserver<JobMessage>() {
+                @Override
+                public void onNext(JobMessage request) {
+                    Gson gson = new Gson();
+                    logger.debug(request.getJobConf());
+                    JobConf job = gson.fromJson(request.getJobConf(), JobConf.class);
+                    jobs.put(job.getJobId(), job);
+                    logger.info("Register Job: " + job.toString());
+                    logger.debug("Pending Jobs: " + jobs.toString());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    logger.warn("Encountered error in exchange", t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+                }
+            };
+        }
+
         @Override
         public StreamObserver<TaskMessage> onTaskComplete(StreamObserver<TaskMessage> responseObserver) {
             return new StreamObserver<TaskMessage>() {

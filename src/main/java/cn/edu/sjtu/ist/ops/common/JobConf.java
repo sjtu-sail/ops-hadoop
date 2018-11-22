@@ -16,6 +16,8 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
+import com.google.gson.Gson;
+
 import java.util.List;
 
 public class JobConf {
@@ -47,4 +49,8 @@ public class JobConf {
         return this.numReduce;
     }
 
+    @Override
+    public String toString() {
+        return new Gson().toJson(this);
+    }
 }

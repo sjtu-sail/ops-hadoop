@@ -9,6 +9,7 @@ package opsinternal;
 
 service OpsInternal {
     rpc registerJob (stream JobMessage) returns (stream JobMessage) {}
+    rpc ditributeJob (stream JobMessage) returns (stream JobMessage) {}
     rpc OnTaskComplete (stream TaskMessage) returns (stream TaskMessage) {}
     rpc OnShuffle (stream ShuffleMessage) returns (stream ShuffleMessage) {}
 }
