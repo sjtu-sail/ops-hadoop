@@ -65,6 +65,7 @@ public class OpsMaster extends OpsNode {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        Thread.currentThread().setName("ops-master");
         EtcdService.initClient();
 
         try {
