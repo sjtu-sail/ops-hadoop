@@ -166,7 +166,7 @@ public class OpsClient {
     }
 
     public static void main(String[] args) throws InterruptedException {
-
+        Thread.currentThread().setName("ops-client");
         OpsClient opsClient = new OpsClient();
 
         // Command line parser

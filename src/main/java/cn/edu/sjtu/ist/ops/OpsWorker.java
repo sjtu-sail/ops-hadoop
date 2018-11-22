@@ -71,6 +71,7 @@ public class OpsWorker extends OpsNode {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        Thread.currentThread().setName("ops-worker");
         EtcdService.initClient();
 
         try {
