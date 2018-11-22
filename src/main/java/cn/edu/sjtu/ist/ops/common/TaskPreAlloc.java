@@ -28,14 +28,14 @@ public class TaskPreAlloc {
     private final int numTasks;
     private final int numNodes;
     private Map<String, OpsNode> nodesMap = new HashMap<>();
-    private Map<OpsNode, List<Integer>> taskOrder = new HashMap<>();
+    private Map<String, List<Integer>> taskOrder = new HashMap<>();
 
     public TaskPreAlloc(int numTasks, List<OpsNode> nodes) {
         this.numTasks = numTasks;
         this.numNodes = nodes.size();
         for (OpsNode node : nodes) {
             this.nodesMap.put(node.getIp(), node);
-            this.taskOrder.put(node, new ArrayList<>());
+            this.taskOrder.put(node.getIp(), new ArrayList<>());
         }
         Iterator<List<Integer>> iter = this.taskOrder.values().iterator();
         for (int i = 0; i < numTasks; i++) {
@@ -47,7 +47,7 @@ public class TaskPreAlloc {
     }
 
     public List<Integer> getTaskOrder(String ip) {
-        return taskOrder.get(nodesMap.get(ip));
+        return taskOrder.get(nodesMap.get(ip).getIp());
     }
 
     public int getNumTasks() {
