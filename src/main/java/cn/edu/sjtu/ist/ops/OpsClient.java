@@ -16,7 +16,6 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
@@ -39,9 +38,7 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
-import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
-import cn.edu.sjtu.ist.ops.util.WatcherThread;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -112,7 +109,7 @@ public class OpsClient {
 
             @Override
             public void onCompleted() {
-
+                masterChannel.shutdown();
             }
         });
 
@@ -147,7 +144,7 @@ public class OpsClient {
 
             @Override
             public void onCompleted() {
-
+                masterChannel.shutdown();
             }
         });
 
@@ -190,7 +187,9 @@ public class OpsClient {
         options.addOption(taskComplete);
 
         try {
-            commandLine = parser.parse(options, rjArgs);
+            // commandLine = parser.parse(options, rjArgs);
+            // commandLine = parser.parse(options, tcArgs);
+            commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {
                 HelpFormatter formatter = new HelpFormatter();
