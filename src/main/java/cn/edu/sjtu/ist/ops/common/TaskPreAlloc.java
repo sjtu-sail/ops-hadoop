@@ -46,6 +46,10 @@ public class TaskPreAlloc {
         }
     }
 
+    public Map<String, OpsNode> getNodesMap() {
+        return this.nodesMap;
+    }
+
     public List<Integer> getTaskOrder(String ip) {
         return taskOrder.get(nodesMap.get(ip).getIp());
     }

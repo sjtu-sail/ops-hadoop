@@ -104,6 +104,7 @@ public class OpsScheduler extends Thread {
         while (pendingOpsTasks.isEmpty()) {
             wait();
         }
+        // TODO: get OpsTask by batch?
 
         OpsTask opsTask = null;
         Iterator<OpsTask> iter = pendingOpsTasks.iterator();

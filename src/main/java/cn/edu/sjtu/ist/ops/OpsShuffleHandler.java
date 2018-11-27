@@ -18,8 +18,10 @@ package cn.edu.sjtu.ist.ops;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import com.google.gson.Gson;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -73,20 +75,14 @@ public class OpsShuffleHandler extends Thread {
             this.server.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortWorkerGRPC());
 
-            while (!stopped && !Thread.currentThread().isInterrupted()) {
-                ShuffleConf shuffleConf = null;
-                shuffleConf = this.getPendingShuffle();
-                shuffle(shuffleConf);
-            }
-            // server.awaitTermination();
+            // while (!stopped && !Thread.currentThread().isInterrupted()) {
+
+            // }
+            server.awaitTermination();
             // channel.wait();
         } catch (Exception e) {
             // TODO: handle exception
         }
-    }
-
-    public void shuffle(ShuffleConf shuffleConf) {
-        // TODO: Do shuffle
     }
 
     public synchronized ShuffleConf getPendingShuffle() throws InterruptedException {
@@ -94,17 +90,21 @@ public class OpsShuffleHandler extends Thread {
             wait();
         }
 
-        ShuffleConf shuffleTask = null;
+        ShuffleConf shuffle = null;
         Iterator<ShuffleConf> iter = pendingShuffles.iterator();
         int numToPick = random.nextInt(pendingShuffles.size());
         for (int i = 0; i <= numToPick; ++i) {
-            shuffleTask = iter.next();
+            shuffle = iter.next();
         }
 
-        pendingShuffles.remove(shuffleTask);
+        pendingShuffles.remove(shuffle);
 
-        logger.debug("Shuffle " + shuffleTask.toString());
-        return shuffleTask;
+        logger.debug("Shuffle " + shuffle.toString());
+        return shuffle;
+    }
+
+    public JobConf getJob(String jobId) {
+        return this.jobs.get(jobId);
     }
 
     public void taskComplete(TaskConf task) {
@@ -154,7 +154,9 @@ public class OpsShuffleHandler extends Thread {
                     }
                     JobConf job = jobs.get(task.getJobId());
                     TaskPreAlloc preAlloc = job.getReducePreAlloc();
-                    pendingShuffles.add(new ShuffleConf(task, preAlloc));
+                    for (OpsNode node : preAlloc.getNodesMap().values()) {
+                        pendingShuffles.add(new ShuffleConf(task, node, preAlloc.getTaskOrder(node.getIp())));
+                    }
 
                     logger.debug("onShuffle: taskConf: " + request.getTaskConf() + " dstNodes: " + preAlloc.toString());
                 }
@@ -192,29 +194,6 @@ public class OpsShuffleHandler extends Thread {
                     responseObserver.onCompleted();
                 }
             };
-        }
-    }
-
-    private class ShuffleConf {
-        private TaskConf taskConf;
-        private TaskPreAlloc preAlloc;
-
-        public ShuffleConf(TaskConf taskConf, TaskPreAlloc preAlloc) {
-            this.taskConf = taskConf;
-            this.preAlloc = preAlloc;
-        }
-
-        public TaskConf getTaskConf() {
-            return this.taskConf;
-        }
-
-        public TaskPreAlloc getPreAlloc() {
-            return this.preAlloc;
-        }
-
-        @Override
-        public String toString() {
-            return new Gson().toJson(this);
         }
     }
 }
