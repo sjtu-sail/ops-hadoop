@@ -8,10 +8,19 @@ option objc_class_prefix = "OPS";
 package opsinternal;
 
 service OpsInternal {
+    rpc transfer (stream Chunk) returns (stream StatusMessage) {}
     rpc registerJob (stream JobMessage) returns (stream JobMessage) {}
     rpc distributeJob (stream JobMessage) returns (stream JobMessage) {}
     rpc OnTaskComplete (stream TaskMessage) returns (stream TaskMessage) {}
     rpc OnShuffle (stream ShuffleMessage) returns (stream ShuffleMessage) {}
+}
+
+message Chunk {
+    bytes content = 1;
+}
+
+message StatusMessage {
+    int32 status = 1;
 }
 
 message JobMessage {
