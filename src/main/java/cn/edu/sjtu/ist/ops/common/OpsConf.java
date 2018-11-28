@@ -19,7 +19,7 @@ package cn.edu.sjtu.ist.ops.common;
 import java.util.List;
 
 public class OpsConf {
-    private List<OpsNode> workers;
+    private List<OpsNode> workers; // TODO: delete workers info and use watcher to get instrad
     private OpsNode master;
     private int portMasterGRPC = 14010;
     private int portWorkerGRPC = 14020;

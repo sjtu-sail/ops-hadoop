@@ -37,6 +37,7 @@ public class OpsWorker extends OpsNode {
     private HeartbeatThread heartbeat;
     private WatcherThread watcher;
     private OpsShuffleHandler shuffleHandler;
+    private OpsTransferer[] transferers;
 
     public OpsWorker(String ip, String hostname) {
         super(ip, hostname);
@@ -53,6 +54,11 @@ public class OpsWorker extends OpsNode {
             OpsConf opsConf = new OpsConf(master, this.watcher.getWorkers());
 
             shuffleHandler = new OpsShuffleHandler(opsConf);
+
+            transferers = new OpsTransferer[1];
+            for (int i = 0; i < transferers.length; i++) {
+                transferers[i] = new OpsTransferer(i, shuffleHandler, opsConf);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -64,6 +70,10 @@ public class OpsWorker extends OpsNode {
 
         logger.debug("Worker start");
         this.shuffleHandler.start();
+
+        for (OpsTransferer transferer : this.transferers) {
+            transferer.start();
+        }
     }
 
     private void blockUntilShutdown() throws InterruptedException {

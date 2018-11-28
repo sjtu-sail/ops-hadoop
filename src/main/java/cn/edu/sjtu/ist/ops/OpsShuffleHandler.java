@@ -37,6 +37,10 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.io.File;
+import com.google.common.io.Files;
+import com.google.common.io.FileWriteMode;
+import com.google.common.io.ByteSink;
 
 public class OpsShuffleHandler extends Thread {
 
@@ -107,6 +111,13 @@ public class OpsShuffleHandler extends Thread {
         return this.jobs.get(jobId);
     }
 
+    public synchronized void addpendingShuffles(ShuffleConf shuffle) {
+        pendingShuffles.add(shuffle);
+        logger.debug("onShuffle: add pendingShuffles task " + shuffle.getTask().getTaskId() + " to node "
+                + shuffle.getDstNode().getIp());
+        notifyAll();
+    }
+
     public void taskComplete(TaskConf task) {
         StreamObserver<TaskMessage> requestObserver = asyncStub.onTaskComplete(new StreamObserver<TaskMessage>() {
             @Override
@@ -140,6 +151,37 @@ public class OpsShuffleHandler extends Thread {
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
         @Override
+        public StreamObserver<Chunk> transfer(StreamObserver<StatusMessage> responseObserver) {
+            return new StreamObserver<Chunk>() {
+                @Override
+                public void onNext(Chunk chunk) {
+                    try {
+                        File file = new File("/file.receive");
+                        if (!file.exists()) {
+                            file.createNewFile();
+                        }
+                        ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
+                        byteSink.write(chunk.getContent().toByteArray());
+                        logger.debug("Receive chunk, file length: " + file.length());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        // TODO: handle exception
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    logger.warn("Encountered error in exchange", t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+                }
+            };
+        }
+
+        @Override
         public StreamObserver<ShuffleMessage> onShuffle(StreamObserver<ShuffleMessage> responseObserver) {
             return new StreamObserver<ShuffleMessage>() {
                 @Override
@@ -155,10 +197,9 @@ public class OpsShuffleHandler extends Thread {
                     JobConf job = jobs.get(task.getJobId());
                     TaskPreAlloc preAlloc = job.getReducePreAlloc();
                     for (OpsNode node : preAlloc.getNodesMap().values()) {
-                        pendingShuffles.add(new ShuffleConf(task, node, preAlloc.getTaskOrder(node.getIp())));
+                        ShuffleConf shuffle = new ShuffleConf(task, node, preAlloc.getTaskOrder(node.getIp()));
+                        addpendingShuffles(shuffle);
                     }
-
-                    logger.debug("onShuffle: taskConf: " + request.getTaskConf() + " dstNodes: " + preAlloc.toString());
                 }
 
                 @Override
