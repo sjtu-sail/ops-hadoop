@@ -23,6 +23,7 @@ import java.util.Arrays;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
+import com.coreos.jetcd.data.KeyValue;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
@@ -45,8 +46,8 @@ import io.grpc.stub.StreamObserver;
 
 public class OpsClient {
 
-    private OpsNode master;
-    private List<OpsNode> workers;
+    private OpsNode master = new OpsNode("localhost", "localhost");
+    private List<OpsNode> workers = new ArrayList<>();
     private OpsConf opsConf;
     private ManagedChannel masterChannel;
     private ManagedChannel workerChannel;
@@ -58,12 +59,20 @@ public class OpsClient {
         EtcdService.initClient();
         Gson gson = new Gson();
 
-        this.master = gson.fromJson(EtcdService.getKVs("ops/nodes/master").get(0).getValue().toStringUtf8(),
-                OpsNode.class);
+        List<KeyValue> masterKV = EtcdService.getKVs("ops/nodes/master");
+        if (masterKV.size() == 0) {
+            System.err.println("Master not found from etcd server.");
+            return;
+        }
+        this.master = gson.fromJson(masterKV.get(0).getValue().toStringUtf8(), OpsNode.class);
 
+        List<KeyValue> workersKV = EtcdService.getKVs("ops/nodes/worker");
+        if (workersKV.size() == 0) {
+            System.err.println("Workers not found from etcd server.");
+            return;
+        }
         this.workers = new ArrayList<>();
-        EtcdService.getKVs("ops/nodes/worker").stream()
-                .forEach(kv -> workers.add(gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class)));
+        workersKV.stream().forEach(kv -> workers.add(gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class)));
 
         System.out.println("OpsMaster: " + this.master);
         System.out.println("OpsWorkers: " + this.workers);
@@ -73,7 +82,9 @@ public class OpsClient {
             OpsConfig opsConfig = mapper.readValue(
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
             this.master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
-            this.opsConf = new OpsConf(master, workers);
+            this.opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
+                    opsConfig.getOpsWorkerPortGRPC());
+            System.out.println("opsConf: " + opsConf.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -180,16 +191,16 @@ public class OpsClient {
         CommandLineParser parser = new BasicParser();
 
         String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.0.0.118", "Administrators-MacBook-Pro.local" };
+        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.0.0.173", "Administrators-MacBook-Pro.local" };
 
         options.addOption(help);
         options.addOption(registerJob);
         options.addOption(taskComplete);
 
         try {
-            // commandLine = parser.parse(options, rjArgs);
+            commandLine = parser.parse(options, rjArgs);
             // commandLine = parser.parse(options, tcArgs);
-            commandLine = parser.parse(options, args);
+            // commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {
                 HelpFormatter formatter = new HelpFormatter();

@@ -16,17 +16,22 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.gson.Gson;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
+import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
-import com.google.gson.Gson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 public class OpsMaster extends OpsNode {
 
@@ -43,9 +48,17 @@ public class OpsMaster extends OpsNode {
         this.heartbeat = new HeartbeatThread("ops/nodes/master/", gson.toJson(this));
         this.watcher = new WatcherThread("ops/nodes/worker");
 
-        OpsConf opsConf = new OpsConf(this, this.watcher.getWorkers());
-        this.scheduler = new OpsScheduler(opsConf, this.watcher);
-
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        try {
+            OpsConfig opsConfig = mapper.readValue(
+                    Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
+            OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
+            OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
+                    opsConfig.getOpsWorkerPortGRPC());
+            this.scheduler = new OpsScheduler(opsConf, this.watcher);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void start() throws UnknownHostException {

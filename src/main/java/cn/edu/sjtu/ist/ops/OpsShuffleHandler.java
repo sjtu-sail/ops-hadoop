@@ -156,7 +156,7 @@ public class OpsShuffleHandler extends Thread {
                 @Override
                 public void onNext(Chunk chunk) {
                     try {
-                        File file = new File("/file.receive");
+                        File file = new File("/Users/admin/Documents/GitHub/OPS/file.receive");
                         if (!file.exists()) {
                             file.createNewFile();
                         }

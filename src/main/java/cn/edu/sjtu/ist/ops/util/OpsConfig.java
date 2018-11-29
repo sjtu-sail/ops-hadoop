@@ -38,6 +38,18 @@ public class OpsConfig {
     public String getMasterHostName() {
         return this.ops.getMaster().getHostname();
     }
+
+    public String getOpsWorkerLocalDir() {
+        return this.ops.getWorker().getLocalDir();
+    }
+
+    public Integer getOpsMasterPortGRPC() {
+        return this.ops.getMaster().getPortGRPC();
+    }
+
+    public Integer getOpsWorkerPortGRPC() {
+        return this.ops.getWorker().getPortGRPC();
+    }
 }
 
 class Ops {
@@ -45,14 +57,14 @@ class Ops {
     private Master master;
 
     @JsonProperty
-    private Grpc grpc;
+    private Worker worker;
 
     public Master getMaster() {
         return master;
     }
 
-    public Grpc getGrpc() {
-        return grpc;
+    public Worker getWorker() {
+        return worker;
     }
 }
 
@@ -61,30 +73,30 @@ class Master {
     private String hostname;
 
     @JsonProperty
-    private Integer port;
+    private Integer port_grpc;
 
     public String getHostname() {
         return hostname;
     }
 
-    public Integer getPort() {
-        return port;
+    public Integer getPortGRPC() {
+        return port_grpc;
     }
 }
 
-class Grpc {
+class Worker {
     @JsonProperty
-    private String master;
+    private String localDir;
 
     @JsonProperty
-    private String worker;
+    private Integer port_grpc;
 
-    public String getMaster() {
-        return master;
+    public String getLocalDir() {
+        return this.localDir;
     }
 
-    public String getWorker() {
-        return worker;
+    public Integer getPortGRPC() {
+        return port_grpc;
     }
 }
 

@@ -16,33 +16,27 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
-import java.util.List;
+import com.google.gson.Gson;
 
 public class OpsConf {
-    private List<OpsNode> workers; // TODO: delete workers info and use watcher to get instrad
-    private OpsNode master;
-    private int portMasterGRPC = 14010;
-    private int portWorkerGRPC = 14020;
+    private final OpsNode master;
+    private final String localDir;
+    private final int portMasterGRPC;
+    private final int portWorkerGRPC;
 
-    public OpsConf(OpsNode master, List<OpsNode> workers) {
+    public OpsConf(OpsNode master, String dir, int portMasterGRPC, int portWorkerGRPC) {
         this.master = master;
-        this.workers = workers;
-    }
-
-    public List<OpsNode> getWorkers() {
-        return this.workers;
-    }
-
-    public void setWorkers(List<OpsNode> workers) {
-        this.workers = workers;
+        this.localDir = dir;
+        this.portMasterGRPC = portMasterGRPC;
+        this.portWorkerGRPC = portWorkerGRPC;
     }
 
     public OpsNode getMaster() {
         return this.master;
     }
 
-    public void setMaster(OpsNode master) {
-        this.master = master;
+    public String getDir() {
+        return this.localDir;
     }
 
     public int getPortMasterGRPC() {
@@ -53,4 +47,8 @@ public class OpsConf {
         return this.portWorkerGRPC;
     }
 
+    @Override
+    public String toString() {
+        return new Gson().toJson(this);
+    }
 }

@@ -173,7 +173,6 @@ public class OpsScheduler extends Thread {
     }
 
     public void onDistributeJob(JobConf job) {
-        updateWorkers();
         setupWorkersRPC();
         jobs.put(job.getJobId(), job);
         logger.debug("Workers: " + this.watcherThread.getWorkers());
@@ -208,10 +207,6 @@ public class OpsScheduler extends Thread {
             // Mark the end of requests
             requestObserver.onCompleted();
         }
-    }
-
-    private void updateWorkers() {
-        this.opsConf.setWorkers(this.watcherThread.getWorkers());
     }
 
     public synchronized void addPendingOpsTask(OpsTask opsTask) {

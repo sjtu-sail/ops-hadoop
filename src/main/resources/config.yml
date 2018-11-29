@@ -1,12 +1,12 @@
 ops:
   master:
     hostname: "localhost"
-    port: 10000
-  grpc:
-    master: 14010
-    worker: 14020
+    port_grpc: 14010
+  worker:
+    localDir: 
+    port_grpc: 14020
 
 etcd:
   endpoints:
-    - hostname:
-      port:
+    - hostname: 
+      port: 12379

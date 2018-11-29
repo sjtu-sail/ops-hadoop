@@ -33,6 +33,9 @@ public class TaskPreAlloc {
     public TaskPreAlloc(int numTasks, List<OpsNode> nodes) {
         this.numTasks = numTasks;
         this.numNodes = nodes.size();
+        if (this.numNodes == 0) {
+            return;
+        }
         for (OpsNode node : nodes) {
             this.nodesMap.put(node.getIp(), node);
             this.taskOrder.put(node.getIp(), new ArrayList<>());
