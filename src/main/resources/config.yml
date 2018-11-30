@@ -8,5 +8,5 @@ ops:
 
 etcd:
   endpoints:
-    - hostname: 
+    - hostname:
       port: 12379

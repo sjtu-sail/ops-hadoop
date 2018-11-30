@@ -48,4 +48,6 @@ if [[ ${CLASSPATH} ]]; then
 		exit
 		;;
 	esac
+else
+    echo -e "${RED}Error: Please execute ops.sh instead${END}"
 fi
