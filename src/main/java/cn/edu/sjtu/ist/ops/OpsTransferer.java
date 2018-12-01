@@ -21,7 +21,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
 
 import org.slf4j.Logger;
@@ -57,7 +56,7 @@ class OpsTransferer extends Thread {
             while (!Thread.currentThread().isInterrupted()) {
                 ShuffleConf shuffle = null;
                 shuffle = shuffleHandler.getPendingShuffle();
-                doShuffle(shuffle);
+                transfer(shuffle);
             }
             // server.awaitTermination();
             // channel.wait();
@@ -66,7 +65,7 @@ class OpsTransferer extends Thread {
         }
     }
 
-    private void doShuffle(ShuffleConf shuffle) {
+    private void transfer(ShuffleConf shuffle) {
         JobConf job = this.shuffleHandler.getJob(shuffle.getTask().getJobId());
         TaskPreAlloc preAlloc = job.getReducePreAlloc();
 
