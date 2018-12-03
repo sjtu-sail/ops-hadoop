@@ -91,12 +91,19 @@ class Worker {
     @JsonProperty
     private Integer port_grpc;
 
+    @JsonProperty
+    private Integer port_hadoop_grpc;
+
     public String getLocalDir() {
         return this.localDir;
     }
 
     public Integer getPortGRPC() {
         return port_grpc;
+    }
+
+    public Integer getPortHadoopGRPC() {
+        return this.port_hadoop_grpc;
     }
 }
 

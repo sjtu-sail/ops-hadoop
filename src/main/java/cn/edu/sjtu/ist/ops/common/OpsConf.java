@@ -21,14 +21,16 @@ import com.google.gson.Gson;
 public class OpsConf {
     private final OpsNode master;
     private final String localDir;
-    private final int portMasterGRPC;
-    private final int portWorkerGRPC;
+    private final Integer portMasterGRPC;
+    private final Integer portWorkerGRPC;
+    private final Integer portHadoopGRPC;
 
-    public OpsConf(OpsNode master, String dir, int portMasterGRPC, int portWorkerGRPC) {
+    public OpsConf(OpsNode master, String dir, Integer portMasterGRPC, Integer portWorkerGRPC, Integer portHadoopGRPC) {
         this.master = master;
         this.localDir = dir;
         this.portMasterGRPC = portMasterGRPC;
         this.portWorkerGRPC = portWorkerGRPC;
+        this.portHadoopGRPC = portHadoopGRPC;
     }
 
     public OpsNode getMaster() {
@@ -39,12 +41,16 @@ public class OpsConf {
         return this.localDir;
     }
 
-    public int getPortMasterGRPC() {
+    public Integer getPortMasterGRPC() {
         return this.portMasterGRPC;
     }
 
-    public int getPortWorkerGRPC() {
+    public Integer getPortWorkerGRPC() {
         return this.portWorkerGRPC;
+    }
+
+    public Integer getPortHadoopGRPC() {
+        return this.portHadoopGRPC;
     }
 
     @Override

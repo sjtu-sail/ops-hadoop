@@ -3,10 +3,11 @@ ops:
     hostname: "localhost"
     port_grpc: 14010
   worker:
-    localDir: 
+    localDir: "/Users/admin/Documents/GitHub/OPS/"
     port_grpc: 14020
+    port_hadoop_grpc: 14030
 
 etcd:
   endpoints:
-    - hostname:
+    - hostname: "http://202.120.40.4"
       port: 12379
