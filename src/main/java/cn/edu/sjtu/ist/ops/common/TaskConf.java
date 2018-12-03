@@ -38,7 +38,7 @@ public class TaskConf {
 
     @Override
     public String toString() {
-        return new Gson().toJson(this);
+        return "{\"taskId\": " + this.taskId + "}";
     }
 
     public Boolean getIsMap() {

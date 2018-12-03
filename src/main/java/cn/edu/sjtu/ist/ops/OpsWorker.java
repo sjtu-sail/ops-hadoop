@@ -52,7 +52,7 @@ public class OpsWorker extends OpsNode {
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
             OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
             OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
-                    opsConfig.getOpsWorkerPortGRPC());
+                    opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
 
             shuffleHandler = new OpsShuffleHandler(opsConf);
 

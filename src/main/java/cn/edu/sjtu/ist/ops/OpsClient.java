@@ -19,6 +19,8 @@ package cn.edu.sjtu.ist.ops;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -51,8 +53,10 @@ public class OpsClient {
     private OpsConf opsConf;
     private ManagedChannel masterChannel;
     private ManagedChannel workerChannel;
+    private ManagedChannel hadoopChannel;
     private OpsInternalGrpc.OpsInternalStub workerStub;
     private OpsInternalGrpc.OpsInternalStub masterStub;
+    private HadoopOpsGrpc.HadoopOpsStub hadoopStub;
 
     public OpsClient() {
 
@@ -83,7 +87,7 @@ public class OpsClient {
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
             this.master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
             this.opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
-                    opsConfig.getOpsWorkerPortGRPC());
+                    opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
             System.out.println("opsConf: " + opsConf.toString());
         } catch (Exception e) {
             e.printStackTrace();
@@ -96,21 +100,16 @@ public class OpsClient {
     }
 
     public void taskComplete(TaskConf task) {
-        // if (!this.workers.contains(task.getOpsNode())) {
-        // System.err.println("Worker not found: " + task.getOpsNode());
-        // }
-        // this.workerChannel =
-        // ManagedChannelBuilder.forAddress(task.getOpsNode().getIp(),
-        // opsConf.getPortWorkerGRPC())
-        // .usePlaintext().build();
-        // this.workerStub = OpsInternalGrpc.newStub(this.workerChannel);
-        this.masterChannel = ManagedChannelBuilder
-                .forAddress(this.opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC()).usePlaintext().build();
-        this.masterStub = OpsInternalGrpc.newStub(this.masterChannel);
-        StreamObserver<TaskMessage> requestObserver = masterStub.onTaskComplete(new StreamObserver<TaskMessage>() {
+        this.hadoopChannel = ManagedChannelBuilder.forAddress(task.getOpsNode().getIp(), opsConf.getPortHadoopGRPC())
+                .usePlaintext().build();
+        this.hadoopStub = HadoopOpsGrpc.newStub(this.hadoopChannel);
+        HadoopMessage request = HadoopMessage.newBuilder().setIsMap(task.getIsMap()).setTaskId(task.getTaskId())
+                .setJobId(task.getJobId()).setPath(task.getPath().toString())
+                .setIndexPath(task.getIndexPath().toString()).build();
+        StreamObserver<Empty> requestObserver = new StreamObserver<Empty>() {
             @Override
-            public void onNext(TaskMessage msg) {
-                System.out.println("ShuffleHandler: " + msg.getTaskConf());
+            public void onNext(Empty msg) {
+
             }
 
             @Override
@@ -120,22 +119,10 @@ public class OpsClient {
 
             @Override
             public void onCompleted() {
-                masterChannel.shutdown();
+                hadoopChannel.shutdown();
             }
-        });
-
-        try {
-            Gson gson = new Gson();
-            System.out.println(gson.toJson(task));
-            TaskMessage message = TaskMessage.newBuilder().setTaskConf(gson.toJson(task)).build();
-            requestObserver.onNext(message);
-        } catch (RuntimeException e) {
-            // Cancel RPC
-            requestObserver.onError(e);
-            throw e;
-        }
-        // Mark the end of requests
-        requestObserver.onCompleted();
+        };
+        hadoopStub.notify(request, requestObserver);
     }
 
     public void registerJob(JobConf job) {
@@ -180,7 +167,7 @@ public class OpsClient {
         // Command line parser
         CommandLine commandLine;
         Option help = new Option("help", "print this message");
-        int tcArgNum = 5;
+        int tcArgNum = 7;
         Option taskComplete = OptionBuilder.withArgName("taskcomplete").hasArgs().hasArgs(tcArgNum)
                 .withDescription("Send a TaskComplete message to master").create("tc");
         int rjArgNum = 3;
@@ -191,15 +178,16 @@ public class OpsClient {
         CommandLineParser parser = new BasicParser();
 
         String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.0.0.173", "Administrators-MacBook-Pro.local" };
+        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.211.55.2", "Administrators-MacBook-Pro.local",
+                "/testpath", "/testindexpath" };
 
         options.addOption(help);
         options.addOption(registerJob);
         options.addOption(taskComplete);
 
         try {
-            commandLine = parser.parse(options, rjArgs);
-            // commandLine = parser.parse(options, tcArgs);
+            // commandLine = parser.parse(options, rjArgs);
+            commandLine = parser.parse(options, tcArgs);
             // commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {
@@ -209,11 +197,14 @@ public class OpsClient {
             } else if (commandLine.hasOption("tc")) {
                 String[] vals = commandLine.getOptionValues("tc");
                 if (vals.length != tcArgNum) {
-                    System.out.println("Required arguments: [isMap, taskId, jobId, ip, hostname]");
+                    System.out.println("Required arguments: [isMap, taskId, jobId, ip, hostname, path, indexPath]");
                     System.out.println("Wrong arguments: " + Arrays.toString(vals));
                     return;
                 }
-                TaskConf task = new TaskConf(true, vals[1], vals[2], new OpsNode(vals[3], vals[4]));
+                Path path = Paths.get(vals[5]);
+                Path indexPath = Paths.get(vals[6]);
+                TaskConf task = new TaskConf(true, vals[1], vals[2], new OpsNode(vals[3], vals[4]), path, indexPath);
+                System.out.println("Do taskComplete: ");
                 opsClient.taskComplete(task);
             } else if (commandLine.hasOption("rj")) {
                 String[] vals = commandLine.getOptionValues("rj");

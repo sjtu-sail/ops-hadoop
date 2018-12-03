@@ -28,6 +28,7 @@ public class OpsNode implements Serializable {
     private final String hostname;
 
     public OpsNode(String ip, String hostname) {
+        // TODO: Discard hostname
         this.ip = ip;
         this.hostname = hostname;
     }

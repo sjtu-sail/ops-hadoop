@@ -54,7 +54,7 @@ public class OpsMaster extends OpsNode {
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
             OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
             OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
-                    opsConfig.getOpsWorkerPortGRPC());
+                    opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
             this.scheduler = new OpsScheduler(opsConf, this.watcher);
         } catch (Exception e) {
             e.printStackTrace();
@@ -84,7 +84,6 @@ public class OpsMaster extends OpsNode {
         try {
             InetAddress addr = InetAddress.getLocalHost();
             OpsMaster opsMaster = new OpsMaster(addr.getHostAddress(), addr.getHostName());
-
             opsMaster.start();
             opsMaster.blockUntilShutdown();
 

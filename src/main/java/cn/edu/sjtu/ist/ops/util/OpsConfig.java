@@ -50,6 +50,10 @@ public class OpsConfig {
     public Integer getOpsWorkerPortGRPC() {
         return this.ops.getWorker().getPortGRPC();
     }
+
+    public Integer getOpsWorkerPortHadoopGRPC() {
+        return this.ops.getWorker().getPortHadoopGRPC();
+    }
 }
 
 class Ops {

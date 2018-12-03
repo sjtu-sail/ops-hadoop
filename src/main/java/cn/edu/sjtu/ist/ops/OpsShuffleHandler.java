@@ -16,74 +16,89 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.io.ByteSink;
+import com.google.common.io.FileWriteMode;
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
-import cn.edu.sjtu.ist.ops.common.ShuffleConf;
-import com.google.gson.Gson;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.io.File;
-import com.google.common.io.Files;
-import com.google.common.io.FileWriteMode;
-import com.google.common.io.ByteSink;
 
 public class OpsShuffleHandler extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsShuffleHandler.class);
-    private final Server server;
+    private final Server workerServer;
+    private final Server hadoopServer;
     private volatile boolean stopped;
     private final OpsConf opsConf;
     private Set<ShuffleConf> pendingShuffles = new HashSet<>();
+    private Set<TaskConf> pendingTasks = new HashSet<>();
     private HashMap<String, JobConf> jobs;
     private final Random random = new Random();
 
-    private final ManagedChannel channel;
-    private final OpsInternalGrpc.OpsInternalStub asyncStub;
+    private final ManagedChannel masterChannel;
+    private final OpsInternalGrpc.OpsInternalStub masterStub;
 
     public OpsShuffleHandler(OpsConf opsConf) {
         stopped = false;
         this.opsConf = opsConf;
         this.jobs = new HashMap<>();
 
-        this.channel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
+        this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
                 .usePlaintext().build();
-        this.asyncStub = OpsInternalGrpc.newStub(channel);
+        this.masterStub = OpsInternalGrpc.newStub(masterChannel);
 
-        this.server = ServerBuilder.forPort(this.opsConf.getPortWorkerGRPC()).addService(new OpsInternalService())
+        this.workerServer = ServerBuilder.forPort(this.opsConf.getPortWorkerGRPC()).addService(new OpsInternalService())
+                .build();
+        this.hadoopServer = ServerBuilder.forPort(this.opsConf.getPortHadoopGRPC()).addService(new OpsHadoopService())
                 .build();
     }
 
     public void shutdown() throws InterruptedException {
-        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+        masterChannel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Override
     public void run() {
         this.setName("ops-shuffle-handler");
         try {
-            this.server.start();
-            logger.info("gRPC Server started, listening on " + this.opsConf.getPortWorkerGRPC());
+            this.workerServer.start();
+            this.hadoopServer.start();
+            logger.info("gRPC workerServer started, listening on " + this.opsConf.getPortWorkerGRPC());
+            logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
 
-            // while (!stopped && !Thread.currentThread().isInterrupted()) {
+            while (!stopped && !Thread.currentThread().isInterrupted()) {
+                TaskConf task = null;
+                task = this.getPendingTask();
 
-            // }
-            server.awaitTermination();
-            // channel.wait();
+                logger.debug("oh YEAHHHHHH!");
+            }
+            // workerServer.awaitTermination();
+            // masterChannel.wait();
         } catch (Exception e) {
             // TODO: handle exception
         }
@@ -103,8 +118,26 @@ public class OpsShuffleHandler extends Thread {
 
         pendingShuffles.remove(shuffle);
 
-        logger.debug("Shuffle " + shuffle.toString());
+        logger.debug("Get pendingShuffle " + shuffle.toString());
         return shuffle;
+    }
+
+    public synchronized TaskConf getPendingTask() throws InterruptedException {
+        while (pendingTasks.isEmpty()) {
+            wait();
+        }
+
+        TaskConf task = null;
+
+        Iterator<TaskConf> iter = pendingTasks.iterator();
+        int numToPick = random.nextInt(pendingTasks.size());
+        for (int i = 0; i <= numToPick; ++i) {
+            task = iter.next();
+        }
+        pendingTasks.remove(task);
+
+        logger.debug("Get pendingTask " + task.toString());
+        return task;
     }
 
     public JobConf getJob(String jobId) {
@@ -113,13 +146,19 @@ public class OpsShuffleHandler extends Thread {
 
     public synchronized void addpendingShuffles(ShuffleConf shuffle) {
         pendingShuffles.add(shuffle);
-        logger.debug("onShuffle: add pendingShuffles task " + shuffle.getTask().getTaskId() + " to node "
+        logger.debug("Add pendingShuffles task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
         notifyAll();
     }
 
+    public synchronized void addpendingTasks(TaskConf task) {
+        pendingTasks.add(task);
+        logger.debug("Add pendingTasks task " + task.getTaskId() + " to node " + task.getOpsNode().getIp());
+        notifyAll();
+    }
+
     public void taskComplete(TaskConf task) {
-        StreamObserver<TaskMessage> requestObserver = asyncStub.onTaskComplete(new StreamObserver<TaskMessage>() {
+        StreamObserver<TaskMessage> requestObserver = masterStub.onTaskComplete(new StreamObserver<TaskMessage>() {
             @Override
             public void onNext(TaskMessage msg) {
                 logger.debug("ShuffleHandler: " + msg.getTaskConf());
@@ -147,6 +186,24 @@ public class OpsShuffleHandler extends Thread {
         }
         // Mark the end of requests
         requestObserver.onCompleted();
+    }
+
+    private class OpsHadoopService extends HadoopOpsGrpc.HadoopOpsImplBase {
+        @Override
+        public void notify(HadoopMessage request, StreamObserver<Empty> responseObserver) {
+
+            OpsNode node = new OpsNode(request.getIp(), request.getIp());
+            Path path = Paths.get(request.getPath());
+            Path indexPath = Paths.get(request.getIndexPath());
+            TaskConf task = new TaskConf(request.getIsMap(), request.getTaskId(), request.getJobId(), node, path,
+                    indexPath);
+
+            addpendingTasks(task);
+
+            Empty empty = Empty.newBuilder().build();
+            responseObserver.onNext(empty);
+            responseObserver.onCompleted();
+        }
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
