@@ -42,6 +42,7 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -66,6 +67,7 @@ public class OpsShuffleHandler extends Thread {
     public OpsShuffleHandler(OpsConf opsConf) {
         stopped = false;
         this.opsConf = opsConf;
+        OpsUtils.initLocalDir(this.opsConf.getDir());
         this.jobs = new HashMap<>();
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
@@ -94,8 +96,7 @@ public class OpsShuffleHandler extends Thread {
             while (!stopped && !Thread.currentThread().isInterrupted()) {
                 TaskConf task = null;
                 task = this.getPendingTask();
-
-                logger.debug("oh YEAHHHHHH!");
+                this.taskComplete(task);
             }
             // workerServer.awaitTermination();
             // masterChannel.wait();
@@ -213,13 +214,14 @@ public class OpsShuffleHandler extends Thread {
                 @Override
                 public void onNext(Chunk chunk) {
                     try {
-                        File file = new File("/Users/admin/Documents/GitHub/OPS/file.receive");
+                        String path = chunk.getPath();
+                        File file = new File(opsConf.getDir(), path);
                         if (!file.exists()) {
                             file.createNewFile();
                         }
                         ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
                         byteSink.write(chunk.getContent().toByteArray());
-                        logger.debug("Receive chunk, file length: " + file.length());
+                        logger.debug("Receive chunk: {Path: " + file.toString() + ", Length: " + file.length() + "}");
                     } catch (Exception e) {
                         e.printStackTrace();
                         // TODO: handle exception

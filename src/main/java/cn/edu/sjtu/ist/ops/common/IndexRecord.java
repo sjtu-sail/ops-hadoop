@@ -16,6 +16,8 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
+import com.google.gson.Gson;
+
 public class IndexRecord {
     private final long startOffset;
     private final long rawLength;
@@ -37,5 +39,10 @@ public class IndexRecord {
 
     public long getPartLength() {
         return this.partLength;
+    }
+
+    @Override
+    public String toString() {
+        return new Gson().toJson(this);
     }
 }

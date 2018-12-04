@@ -16,16 +16,16 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Arrays;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
+import com.coreos.jetcd.data.KeyValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
-import com.coreos.jetcd.data.KeyValue;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
@@ -36,10 +36,10 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.TaskConf;
-import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import io.grpc.ManagedChannel;

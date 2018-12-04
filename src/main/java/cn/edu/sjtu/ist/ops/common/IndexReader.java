@@ -20,13 +20,13 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
 
 public class IndexReader {
     private static final Logger logger = LoggerFactory.getLogger(IndexReader.class);
@@ -46,7 +46,7 @@ public class IndexReader {
         try {
             ByteBuffer buf = ByteBuffer.allocate(size);
             DataInputStream dis = new DataInputStream(new FileInputStream(this.indexFile));
-            readFully(dis, buf.array(), 0, size);
+            OpsUtils.readFully(dis, buf.array(), 0, size);
             this.entries = buf.asLongBuffer();
             logger.debug("Index file: " + indexFilePath + " size: " + this.size + " partitions: " + this.partitions);
         } catch (FileNotFoundException e) {
@@ -61,17 +61,5 @@ public class IndexReader {
     public IndexRecord getIndex(int partition) {
         final int pos = partition * MAP_OUTPUT_INDEX_RECORD_LENGTH / 8;
         return new IndexRecord(entries.get(pos), entries.get(pos + 1), entries.get(pos + 2));
-    }
-
-    public static void readFully(InputStream in, byte[] buf, int off, int len) throws IOException {
-        int toRead = len;
-        while (toRead > 0) {
-            int ret = in.read(buf, off, toRead);
-            if (ret < 0) {
-                throw new IOException("Premature EOF from inputStream");
-            }
-            toRead -= ret;
-            off += ret;
-        }
     }
 }

@@ -20,12 +20,16 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.protobuf.ByteString;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cn.edu.sjtu.ist.ops.common.IndexReader;
+import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
@@ -65,7 +69,7 @@ class OpsTransferer extends Thread {
         }
     }
 
-    private void transfer(ShuffleConf shuffle) {
+    private void transfer(ShuffleConf shuffle) throws IllegalArgumentException {
         JobConf job = this.shuffleHandler.getJob(shuffle.getTask().getJobId());
         TaskPreAlloc preAlloc = job.getReducePreAlloc();
 
@@ -73,6 +77,7 @@ class OpsTransferer extends Thread {
                 + shuffle.getDstNode().getIp());
 
         // TODO: shuffle file based on index file
+        IndexReader indexReader = new IndexReader(shuffle.getTask().getIndexPath().toString());
 
         ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
@@ -95,14 +100,43 @@ class OpsTransferer extends Thread {
         });
 
         try {
-            BufferedInputStream input = new BufferedInputStream(new FileInputStream("file.test")); // for test
-            int bufferSize = 256 * 1024;// 256k
-            byte[] buffer = new byte[bufferSize];
-            int length;
-            while ((length = input.read(buffer, 0, bufferSize)) != -1) {
-                Chunk chunk = Chunk.newBuilder().setContent(ByteString.copyFrom(buffer, 0, length)).build();
+            for (Integer num : shuffle.getNums()) {
+                IndexRecord record = indexReader.getIndex(num);
+                long startOffset = record.getStartOffset();
+                long partLength = record.getPartLength();
+
+                logger.debug("Transfer indexRecord: " + record.toString());
+
+                String path = shuffle.getTask().getJobId() + "/" + shuffle.getTask().getTaskId() + "_" + num;
+
+                BufferedInputStream input = new BufferedInputStream(
+                        new FileInputStream(shuffle.getTask().getPath().toFile()));
+                input.skip(startOffset);
+
+                int bufferSize = 256 * 1024;// 256k
+
+                byte[] buffer = new byte[bufferSize];
+                int length;
+                while (true) {
+                    if (partLength < bufferSize) {
+                        break;
+                    }
+                    length = input.read(buffer, 0, bufferSize);
+                    partLength -= length;
+                    if (length == -1) {
+                        input.close();
+                        throw new IllegalArgumentException("Unexpected file length.");
+                    }
+                    Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length))
+                            .build();
+                    requestObserver.onNext(chunk);
+                }
+                length = input.read(buffer, 0, (int) partLength);
+                Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length))
+                        .build();
                 requestObserver.onNext(chunk);
             }
+
         } catch (RuntimeException e) {
             // Cancel RPC
             requestObserver.onError(e);

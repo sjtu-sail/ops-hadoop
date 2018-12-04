@@ -16,7 +16,8 @@ service OpsInternal {
 }
 
 message Chunk {
-    bytes content = 1;
+    string path = 1;
+    bytes content = 2;
 }
 
 message StatusMessage {

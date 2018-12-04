@@ -61,7 +61,7 @@ public class OpsScheduler extends Thread {
         this.workerChannels = new HashMap<>();
         this.workerStubs = new HashMap<>();
 
-        setupWorkersRPC();
+        setupWorkersGRPC();
 
         this.server = ServerBuilder.forPort(this.opsConf.getPortMasterGRPC()).addService(new OpsInternalService())
                 .build();
@@ -104,7 +104,6 @@ public class OpsScheduler extends Thread {
         while (pendingOpsTasks.isEmpty()) {
             wait();
         }
-        // TODO: get OpsTask by batch?
 
         OpsTask opsTask = null;
         Iterator<OpsTask> iter = pendingOpsTasks.iterator();
@@ -119,7 +118,7 @@ public class OpsScheduler extends Thread {
         return opsTask;
     }
 
-    public void setupWorkersRPC() {
+    public synchronized void setupWorkersGRPC() {
         for (OpsNode worker : this.watcherThread.getWorkers()) {
             if (!this.workerChannels.containsKey(worker.getIp()) || !this.workerStubs.containsKey(worker.getIp())) {
                 ManagedChannel channel = ManagedChannelBuilder.forAddress(worker.getIp(), opsConf.getPortWorkerGRPC())
@@ -133,12 +132,12 @@ public class OpsScheduler extends Thread {
     }
 
     public void onShuffle(TaskConf task) {
-        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
-            setupWorkersRPC();
-        }
-        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
+        if (!this.watcherThread.getWorkers().contains(task.getOpsNode())) {
             logger.error("Worker not found.");
             return;
+        }
+        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
+            setupWorkersGRPC();
         }
 
         StreamObserver<ShuffleMessage> requestObserver = this.workerStubs.get(task.getOpsNode().getIp())
@@ -173,7 +172,7 @@ public class OpsScheduler extends Thread {
     }
 
     public void onDistributeJob(JobConf job) {
-        setupWorkersRPC();
+        setupWorkersGRPC();
         jobs.put(job.getJobId(), job);
         logger.debug("Workers: " + this.watcherThread.getWorkers());
 
