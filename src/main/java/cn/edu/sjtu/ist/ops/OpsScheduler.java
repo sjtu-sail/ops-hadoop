@@ -133,7 +133,7 @@ public class OpsScheduler extends Thread {
 
     public void onShuffle(TaskConf task) {
         if (!this.watcherThread.getWorkers().contains(task.getOpsNode())) {
-            logger.error("Worker not found.");
+            logger.error("Worker not found: " + task.getOpsNode());
             return;
         }
         if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {

@@ -16,11 +16,8 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import org.apache.commons.io.FileUtils;
 import java.io.File;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -194,10 +191,8 @@ public class OpsShuffleHandler extends Thread {
         public void notify(HadoopMessage request, StreamObserver<Empty> responseObserver) {
 
             OpsNode node = new OpsNode(request.getIp(), request.getIp());
-            Path path = Paths.get(request.getPath());
-            Path indexPath = Paths.get(request.getIndexPath());
-            TaskConf task = new TaskConf(request.getIsMap(), request.getTaskId(), request.getJobId(), node, path,
-                    indexPath);
+            TaskConf task = new TaskConf(request.getIsMap(), request.getTaskId(), request.getJobId(), node,
+                    request.getPath(), request.getIndexPath());
 
             addpendingTasks(task);
 
@@ -217,7 +212,9 @@ public class OpsShuffleHandler extends Thread {
                         String path = chunk.getPath();
                         File file = new File(opsConf.getDir(), path);
                         if (!file.exists()) {
+                            FileUtils.forceMkdirParent(file);
                             file.createNewFile();
+                            logger.debug("mkdir & create file for shuffle data: " + file.toString());
                         }
                         ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
                         byteSink.write(chunk.getContent().toByteArray());

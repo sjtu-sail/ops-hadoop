@@ -17,17 +17,16 @@
 package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
-import java.nio.file.Path;
 
 public class TaskConf {
     private final Boolean isMap;
     private final String taskId;
     private final String jobId;
     private final OpsNode opsNode;
-    private final Path path;
-    private final Path indexPath;
+    private final String path;
+    private final String indexPath;
 
-    public TaskConf(Boolean isMap, String taskId, String jobId, OpsNode node, Path path, Path indexPath) {
+    public TaskConf(Boolean isMap, String taskId, String jobId, OpsNode node, String path, String indexPath) {
         this.isMap = isMap;
         this.taskId = taskId;
         this.jobId = jobId;
@@ -38,7 +37,8 @@ public class TaskConf {
 
     @Override
     public String toString() {
-        return "{\"taskId\": " + this.taskId + "}";
+        return new Gson().toJson(this);
+        // return "{\"taskId\": " + this.taskId + "}";
     }
 
     public Boolean getIsMap() {
@@ -57,11 +57,11 @@ public class TaskConf {
         return this.opsNode;
     }
 
-    public Path getPath() {
+    public String getPath() {
         return this.path;
     }
 
-    public Path getIndexPath() {
+    public String getIndexPath() {
         return this.indexPath;
     }
 }

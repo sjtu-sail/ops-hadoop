@@ -16,8 +16,6 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -104,7 +102,7 @@ public class OpsClient {
                 .usePlaintext().build();
         this.hadoopStub = HadoopOpsGrpc.newStub(this.hadoopChannel);
         HadoopMessage request = HadoopMessage.newBuilder().setIsMap(task.getIsMap()).setTaskId(task.getTaskId())
-                .setJobId(task.getJobId()).setPath(task.getPath().toString())
+                .setJobId(task.getJobId()).setIp(task.getOpsNode().getIp()).setPath(task.getPath().toString())
                 .setIndexPath(task.getIndexPath().toString()).build();
         StreamObserver<Empty> requestObserver = new StreamObserver<Empty>() {
             @Override
@@ -122,6 +120,7 @@ public class OpsClient {
                 hadoopChannel.shutdown();
             }
         };
+        System.out.println("Notify " + task.getOpsNode().getIp() + ":" + opsConf.getPortHadoopGRPC());
         hadoopStub.notify(request, requestObserver);
     }
 
@@ -178,8 +177,9 @@ public class OpsClient {
         CommandLineParser parser = new BasicParser();
 
         String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.211.55.2", "Administrators-MacBook-Pro.local",
-                "/testpath", "/testindexpath" };
+        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.0.0.111", "Administrators-MacBook-Pro.local",
+                "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
+                "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
 
         options.addOption(help);
         options.addOption(registerJob);
@@ -201,10 +201,8 @@ public class OpsClient {
                     System.out.println("Wrong arguments: " + Arrays.toString(vals));
                     return;
                 }
-                Path path = Paths.get(vals[5]);
-                Path indexPath = Paths.get(vals[6]);
-                TaskConf task = new TaskConf(true, vals[1], vals[2], new OpsNode(vals[3], vals[4]), path, indexPath);
-                System.out.println("Do taskComplete: ");
+                TaskConf task = new TaskConf(true, vals[1], vals[2], new OpsNode(vals[3], vals[4]), vals[5], vals[6]);
+                System.out.println("Do taskComplete: " + task.toString());
                 opsClient.taskComplete(task);
             } else if (commandLine.hasOption("rj")) {
                 String[] vals = commandLine.getOptionValues("rj");

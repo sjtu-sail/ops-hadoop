@@ -17,11 +17,10 @@
 package cn.edu.sjtu.ist.ops;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.google.protobuf.ByteString;
 
@@ -110,7 +109,7 @@ class OpsTransferer extends Thread {
                 String path = shuffle.getTask().getJobId() + "/" + shuffle.getTask().getTaskId() + "_" + num;
 
                 BufferedInputStream input = new BufferedInputStream(
-                        new FileInputStream(shuffle.getTask().getPath().toFile()));
+                        new FileInputStream(new File(shuffle.getTask().getPath())));
                 input.skip(startOffset);
 
                 int bufferSize = 256 * 1024;// 256k

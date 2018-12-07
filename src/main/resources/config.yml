@@ -3,7 +3,7 @@ ops:
     hostname: "localhost"
     port_grpc: 14010
   worker:
-    localDir: "/Users/admin/Documents/GitHub/OPS/"
+    localDir: "/Users/admin/Documents/OPS/"
     port_grpc: 14020
     port_hadoop_grpc: 14030
 
