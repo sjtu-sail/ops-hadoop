@@ -16,17 +16,24 @@
 
 package cn.edu.sjtu.ist.ops.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.io.FileUtils;
+
 public class OpsUtils {
 
     public static void initLocalDir(String localDir) {
-        Path path = Paths.get(localDir);
-        if (!path.toFile().exists()) {
-            path.toFile().mkdirs();
+        try {
+            File dir = new File(localDir);
+            if (!dir.exists()) {
+                FileUtils.forceMkdir(new File(localDir));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -40,5 +47,9 @@ public class OpsUtils {
             toRead -= ret;
             off += ret;
         }
+    }
+
+    public static String getMapOutputPath(String jobId, String taskId, Integer num) {
+        return "shuffle/" + jobId + "/" + taskId + "/" + "map_" + num + ".out";
     }
 }

@@ -17,18 +17,17 @@
 package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
-import java.util.List;
 
 public class ShuffleConf {
 
     private final TaskConf task;
     private final OpsNode dstNode;
-    private final List<Integer> nums;
+    private final Integer num;
 
-    public ShuffleConf(TaskConf task, OpsNode dstNode, List<Integer> nums) {
+    public ShuffleConf(TaskConf task, OpsNode dstNode, Integer num) {
         this.task = task;
         this.dstNode = dstNode;
-        this.nums = nums;
+        this.num = num;
     }
 
     public TaskConf getTask() {
@@ -39,8 +38,8 @@ public class ShuffleConf {
         return this.dstNode;
     }
 
-    public List<Integer> getNums() {
-        return this.nums;
+    public Integer getNum() {
+        return this.num;
     }
 
     @Override

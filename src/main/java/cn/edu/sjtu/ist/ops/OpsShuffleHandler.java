@@ -253,8 +253,10 @@ public class OpsShuffleHandler extends Thread {
                     JobConf job = jobs.get(task.getJobId());
                     TaskPreAlloc preAlloc = job.getReducePreAlloc();
                     for (OpsNode node : preAlloc.getNodesMap().values()) {
-                        ShuffleConf shuffle = new ShuffleConf(task, node, preAlloc.getTaskOrder(node.getIp()));
-                        addpendingShuffles(shuffle);
+                        for (Integer num : preAlloc.getTaskOrder(node.getIp())) {
+                            ShuffleConf shuffle = new ShuffleConf(task, node, num);
+                            addpendingShuffles(shuffle);
+                        }
                     }
                 }
 

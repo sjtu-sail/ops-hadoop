@@ -33,6 +33,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;;
@@ -99,42 +100,40 @@ class OpsTransferer extends Thread {
         });
 
         try {
-            for (Integer num : shuffle.getNums()) {
-                IndexRecord record = indexReader.getIndex(num);
-                long startOffset = record.getStartOffset();
-                long partLength = record.getPartLength();
+            IndexRecord record = indexReader.getIndex(shuffle.getNum());
+            long startOffset = record.getStartOffset();
+            long partLength = record.getPartLength();
 
-                logger.debug("Transfer indexRecord: " + record.toString());
+            logger.debug("Transfer indexRecord: " + record.toString());
 
-                String path = shuffle.getTask().getJobId() + "/" + shuffle.getTask().getTaskId() + "_" + num;
+            String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
+                    shuffle.getNum());
 
-                BufferedInputStream input = new BufferedInputStream(
-                        new FileInputStream(new File(shuffle.getTask().getPath())));
-                input.skip(startOffset);
+            BufferedInputStream input = new BufferedInputStream(
+                    new FileInputStream(new File(shuffle.getTask().getPath())));
+            input.skip(startOffset);
 
-                int bufferSize = 256 * 1024;// 256k
+            int bufferSize = 256 * 1024;// 256k
 
-                byte[] buffer = new byte[bufferSize];
-                int length;
-                while (true) {
-                    if (partLength < bufferSize) {
-                        break;
-                    }
-                    length = input.read(buffer, 0, bufferSize);
-                    partLength -= length;
-                    if (length == -1) {
-                        input.close();
-                        throw new IllegalArgumentException("Unexpected file length.");
-                    }
-                    Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length))
-                            .build();
-                    requestObserver.onNext(chunk);
+            byte[] buffer = new byte[bufferSize];
+            int length;
+            while (true) {
+                if (partLength < bufferSize) {
+                    break;
                 }
-                length = input.read(buffer, 0, (int) partLength);
+                length = input.read(buffer, 0, bufferSize);
+                partLength -= length;
+                if (length == -1) {
+                    input.close();
+                    throw new IllegalArgumentException("Unexpected file length.");
+                }
                 Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length))
                         .build();
                 requestObserver.onNext(chunk);
             }
+            length = input.read(buffer, 0, (int) partLength);
+            Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length)).build();
+            requestObserver.onNext(chunk);
 
         } catch (RuntimeException e) {
             // Cancel RPC
