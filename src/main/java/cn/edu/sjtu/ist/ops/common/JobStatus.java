@@ -35,7 +35,7 @@ public class JobStatus {
         this.jobConf = jobConf;
     }
 
-    public void mapTaskCompleted(TaskConf task) {
+    public void mapTaskCompleted(MapConf task) {
 
     }
 

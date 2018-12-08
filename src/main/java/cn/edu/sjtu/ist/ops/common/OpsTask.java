@@ -25,14 +25,14 @@ public class OpsTask {
 
     private Type type;
     private JobConf pendingJob;
-    private TaskConf pendingTask;
+    private MapConf pendingTask;
 
     public OpsTask(JobConf pendingJob) {
         this.type = Type.DISTRIBUTEJOB;
         this.pendingJob = pendingJob;
     }
 
-    public OpsTask(TaskConf pendingTask) {
+    public OpsTask(MapConf pendingTask) {
         this.type = Type.ONSHUFFLE;
         this.pendingTask = pendingTask;
     }
@@ -45,7 +45,7 @@ public class OpsTask {
         return this.pendingJob;
     }
 
-    public TaskConf getPendingTask() {
+    public MapConf getPendingTask() {
         return this.pendingTask;
     }
 

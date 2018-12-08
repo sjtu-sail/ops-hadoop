@@ -20,17 +20,17 @@ import com.google.gson.Gson;
 
 public class ShuffleConf {
 
-    private final TaskConf task;
+    private final MapConf task;
     private final OpsNode dstNode;
     private final Integer num;
 
-    public ShuffleConf(TaskConf task, OpsNode dstNode, Integer num) {
+    public ShuffleConf(MapConf task, OpsNode dstNode, Integer num) {
         this.task = task;
         this.dstNode = dstNode;
         this.num = num;
     }
 
-    public TaskConf getTask() {
+    public MapConf getTask() {
         return this.task;
     }
 

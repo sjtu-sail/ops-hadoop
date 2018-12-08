@@ -18,7 +18,6 @@ package cn.edu.sjtu.ist.ops;
 
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
-import cn.edu.sjtu.ist.ops.common.TaskConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
@@ -39,8 +38,8 @@ public class OpsWorker extends OpsNode {
     private OpsShuffleHandler shuffleHandler;
     private OpsTransferer[] transferers;
 
-    public OpsWorker(String ip, String hostname) {
-        super(ip, hostname);
+    public OpsWorker(String ip) {
+        super(ip);
 
         Gson gson = new Gson();
         this.heartbeat = new HeartbeatThread("ops/nodes/worker/", gson.toJson(this));
@@ -50,7 +49,7 @@ public class OpsWorker extends OpsNode {
         try {
             OpsConfig opsConfig = mapper.readValue(
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
-            OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
+            OpsNode master = new OpsNode(opsConfig.getMasterHostName());
             OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
                     opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
 
@@ -87,7 +86,7 @@ public class OpsWorker extends OpsNode {
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            OpsWorker opsWorker = new OpsWorker(addr.getHostAddress(), addr.getHostName());
+            OpsWorker opsWorker = new OpsWorker(addr.getHostAddress());
 
             opsWorker.start();
             opsWorker.blockUntilShutdown();

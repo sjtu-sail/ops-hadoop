@@ -41,8 +41,8 @@ public class OpsMaster extends OpsNode {
     private HeartbeatThread heartbeat;
     private WatcherThread watcher;
 
-    public OpsMaster(String ip, String hostname) {
-        super(ip, hostname);
+    public OpsMaster(String ip) {
+        super(ip);
 
         Gson gson = new Gson();
         this.heartbeat = new HeartbeatThread("ops/nodes/master/", gson.toJson(this));
@@ -52,7 +52,7 @@ public class OpsMaster extends OpsNode {
         try {
             OpsConfig opsConfig = mapper.readValue(
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
-            OpsNode master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
+            OpsNode master = new OpsNode(opsConfig.getMasterHostName());
             OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
                     opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
             this.scheduler = new OpsScheduler(opsConf, this.watcher);
@@ -83,7 +83,7 @@ public class OpsMaster extends OpsNode {
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            OpsMaster opsMaster = new OpsMaster(addr.getHostAddress(), addr.getHostName());
+            OpsMaster opsMaster = new OpsMaster(addr.getHostAddress());
             opsMaster.start();
             opsMaster.blockUntilShutdown();
 

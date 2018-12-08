@@ -20,7 +20,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.OpsTask;
-import cn.edu.sjtu.ist.ops.common.TaskConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 import com.google.gson.Gson;
 import io.grpc.ManagedChannel;
@@ -131,7 +131,7 @@ public class OpsScheduler extends Thread {
         }
     }
 
-    public void onShuffle(TaskConf task) {
+    public void onShuffle(MapConf task) {
         if (!this.watcherThread.getWorkers().contains(task.getOpsNode())) {
             logger.error("Worker not found: " + task.getOpsNode());
             return;
@@ -160,7 +160,7 @@ public class OpsScheduler extends Thread {
         try {
             Gson gson = new Gson();
             logger.debug("Shuffle task: " + task.toString());
-            ShuffleMessage message = ShuffleMessage.newBuilder().setTaskConf(gson.toJson(task)).build();
+            ShuffleMessage message = ShuffleMessage.newBuilder().setMapConf(gson.toJson(task)).build();
             requestObserver.onNext(message);
         } catch (RuntimeException e) {
             // Cancel RPC
@@ -211,14 +211,10 @@ public class OpsScheduler extends Thread {
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
         switch (opsTask.getType()) {
         case ONSHUFFLE:
-            TaskConf task = opsTask.getPendingTask();
-            if (task.getIsMap()) {
-                // job.mapTaskCompleted(task);
-                this.pendingOpsTasks.add(opsTask);
-                notifyAll();
-            } else {
-                // job.reduceCompleted(task);
-            }
+            MapConf task = opsTask.getPendingTask();
+            // job.mapTaskCompleted(task);
+            this.pendingOpsTasks.add(opsTask);
+            notifyAll();
             break;
         case DISTRIBUTEJOB:
             this.pendingOpsTasks.add(opsTask);
@@ -256,13 +252,13 @@ public class OpsScheduler extends Thread {
         }
 
         @Override
-        public StreamObserver<TaskMessage> onTaskComplete(StreamObserver<TaskMessage> responseObserver) {
-            return new StreamObserver<TaskMessage>() {
+        public StreamObserver<MapMessage> onMapComplete(StreamObserver<MapMessage> responseObserver) {
+            return new StreamObserver<MapMessage>() {
                 @Override
-                public void onNext(TaskMessage request) {
-                    responseObserver.onNext(TaskMessage.newBuilder().setTaskConf("Response taskComplete").build());
+                public void onNext(MapMessage request) {
+                    responseObserver.onNext(MapMessage.newBuilder().setMapConf("Response taskComplete").build());
                     Gson gson = new Gson();
-                    TaskConf task = gson.fromJson(request.getTaskConf(), TaskConf.class);
+                    MapConf task = gson.fromJson(request.getMapConf(), MapConf.class);
                     addPendingOpsTask(new OpsTask(task));
                 }
 

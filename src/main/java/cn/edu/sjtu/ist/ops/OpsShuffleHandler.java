@@ -37,7 +37,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
-import cn.edu.sjtu.ist.ops.common.TaskConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
@@ -54,7 +54,7 @@ public class OpsShuffleHandler extends Thread {
     private volatile boolean stopped;
     private final OpsConf opsConf;
     private Set<ShuffleConf> pendingShuffles = new HashSet<>();
-    private Set<TaskConf> pendingTasks = new HashSet<>();
+    private Set<MapConf> pendingTasks = new HashSet<>();
     private HashMap<String, JobConf> jobs;
     private final Random random = new Random();
 
@@ -91,7 +91,7 @@ public class OpsShuffleHandler extends Thread {
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
-                TaskConf task = null;
+                MapConf task = null;
                 task = this.getPendingTask();
                 this.taskComplete(task);
             }
@@ -120,14 +120,14 @@ public class OpsShuffleHandler extends Thread {
         return shuffle;
     }
 
-    public synchronized TaskConf getPendingTask() throws InterruptedException {
+    public synchronized MapConf getPendingTask() throws InterruptedException {
         while (pendingTasks.isEmpty()) {
             wait();
         }
 
-        TaskConf task = null;
+        MapConf task = null;
 
-        Iterator<TaskConf> iter = pendingTasks.iterator();
+        Iterator<MapConf> iter = pendingTasks.iterator();
         int numToPick = random.nextInt(pendingTasks.size());
         for (int i = 0; i <= numToPick; ++i) {
             task = iter.next();
@@ -149,17 +149,17 @@ public class OpsShuffleHandler extends Thread {
         notifyAll();
     }
 
-    public synchronized void addpendingTasks(TaskConf task) {
+    public synchronized void addpendingTasks(MapConf task) {
         pendingTasks.add(task);
         logger.debug("Add pendingTasks task " + task.getTaskId() + " to node " + task.getOpsNode().getIp());
         notifyAll();
     }
 
-    public void taskComplete(TaskConf task) {
-        StreamObserver<TaskMessage> requestObserver = masterStub.onTaskComplete(new StreamObserver<TaskMessage>() {
+    public void taskComplete(MapConf task) {
+        StreamObserver<MapMessage> requestObserver = masterStub.onMapComplete(new StreamObserver<MapMessage>() {
             @Override
-            public void onNext(TaskMessage msg) {
-                logger.debug("ShuffleHandler: " + msg.getTaskConf());
+            public void onNext(MapMessage msg) {
+                logger.debug("ShuffleHandler: " + msg.getMapConf());
             }
 
             @Override
@@ -175,7 +175,7 @@ public class OpsShuffleHandler extends Thread {
 
         try {
             Gson gson = new Gson();
-            TaskMessage message = TaskMessage.newBuilder().setTaskConf(gson.toJson(task)).build();
+            MapMessage message = MapMessage.newBuilder().setMapConf(gson.toJson(task)).build();
             requestObserver.onNext(message);
         } catch (RuntimeException e) {
             // Cancel RPC
@@ -190,9 +190,9 @@ public class OpsShuffleHandler extends Thread {
         @Override
         public void notify(HadoopMessage request, StreamObserver<Empty> responseObserver) {
 
-            OpsNode node = new OpsNode(request.getIp(), request.getIp());
-            TaskConf task = new TaskConf(request.getIsMap(), request.getTaskId(), request.getJobId(), node,
-                    request.getPath(), request.getIndexPath());
+            OpsNode node = new OpsNode(request.getIp());
+            MapConf task = new MapConf(request.getTaskId(), request.getJobId(), node, request.getPath(),
+                    request.getIndexPath());
 
             addpendingTasks(task);
 
@@ -245,7 +245,7 @@ public class OpsShuffleHandler extends Thread {
                     // responseObserver.onNext(ShuffleMessage.newBuilder().setMsg("ShuffleMessage").build());
 
                     Gson gson = new Gson();
-                    TaskConf task = gson.fromJson(request.getTaskConf(), TaskConf.class);
+                    MapConf task = gson.fromJson(request.getMapConf(), MapConf.class);
                     if (!jobs.containsKey(task.getJobId())) {
                         logger.error("JobId not found: " + task.getJobId());
                         return;

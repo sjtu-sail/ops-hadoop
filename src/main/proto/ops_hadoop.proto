@@ -12,12 +12,11 @@ service HadoopOps {
 }
 
 message HadoopMessage {
-    bool isMap = 1;
-    string taskId = 2;
-    string jobId = 3;
-    string ip = 4;
-    string path = 5;
-    string indexPath = 6;
+    string taskId = 1;
+    string jobId = 2;
+    string ip = 3;
+    string path = 4;
+    string indexPath = 5;
 }
 
 message Empty {}

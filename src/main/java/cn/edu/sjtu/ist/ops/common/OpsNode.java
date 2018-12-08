@@ -25,20 +25,13 @@ public class OpsNode implements Serializable {
     private static final long serialVersionUID = -8745866775809014881L;
 
     private final String ip;
-    private final String hostname;
 
-    public OpsNode(String ip, String hostname) {
-        // TODO: Discard hostname
+    public OpsNode(String ip) {
         this.ip = ip;
-        this.hostname = hostname;
     }
 
     public String getIp() {
         return this.ip;
-    }
-
-    public String getHostname() {
-        return this.hostname;
     }
 
     @Override

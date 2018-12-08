@@ -37,7 +37,7 @@ import org.apache.commons.cli.ParseException;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
-import cn.edu.sjtu.ist.ops.common.TaskConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import io.grpc.ManagedChannel;
@@ -46,7 +46,7 @@ import io.grpc.stub.StreamObserver;
 
 public class OpsClient {
 
-    private OpsNode master = new OpsNode("localhost", "localhost");
+    private OpsNode master;
     private List<OpsNode> workers = new ArrayList<>();
     private OpsConf opsConf;
     private ManagedChannel masterChannel;
@@ -61,13 +61,6 @@ public class OpsClient {
         EtcdService.initClient();
         Gson gson = new Gson();
 
-        List<KeyValue> masterKV = EtcdService.getKVs("ops/nodes/master");
-        if (masterKV.size() == 0) {
-            System.err.println("Master not found from etcd server.");
-            return;
-        }
-        this.master = gson.fromJson(masterKV.get(0).getValue().toStringUtf8(), OpsNode.class);
-
         List<KeyValue> workersKV = EtcdService.getKVs("ops/nodes/worker");
         if (workersKV.size() == 0) {
             System.err.println("Workers not found from etcd server.");
@@ -76,33 +69,31 @@ public class OpsClient {
         this.workers = new ArrayList<>();
         workersKV.stream().forEach(kv -> workers.add(gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class)));
 
-        System.out.println("OpsMaster: " + this.master);
-        System.out.println("OpsWorkers: " + this.workers);
-
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         try {
             OpsConfig opsConfig = mapper.readValue(
                     Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"), OpsConfig.class);
-            this.master = new OpsNode(opsConfig.getMasterHostName(), opsConfig.getMasterHostName());
+            this.master = new OpsNode(opsConfig.getMasterHostName());
             this.opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
                     opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
             System.out.println("opsConf: " + opsConf.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        System.out.println("OpsMaster: " + this.master);
+        System.out.println("OpsWorkers: " + this.workers);
     }
 
     public List<OpsNode> getWorkers() {
         return this.workers;
     }
 
-    public void taskComplete(TaskConf task) {
+    public void taskComplete(MapConf task) {
         this.hadoopChannel = ManagedChannelBuilder.forAddress(task.getOpsNode().getIp(), opsConf.getPortHadoopGRPC())
                 .usePlaintext().build();
         this.hadoopStub = HadoopOpsGrpc.newStub(this.hadoopChannel);
-        HadoopMessage request = HadoopMessage.newBuilder().setIsMap(task.getIsMap()).setTaskId(task.getTaskId())
-                .setJobId(task.getJobId()).setIp(task.getOpsNode().getIp()).setPath(task.getPath().toString())
+        HadoopMessage request = HadoopMessage.newBuilder().setTaskId(task.getTaskId()).setJobId(task.getJobId())
+                .setIp(task.getOpsNode().getIp()).setPath(task.getPath().toString())
                 .setIndexPath(task.getIndexPath().toString()).build();
         StreamObserver<Empty> requestObserver = new StreamObserver<Empty>() {
             @Override
@@ -166,7 +157,7 @@ public class OpsClient {
         // Command line parser
         CommandLine commandLine;
         Option help = new Option("help", "print this message");
-        int tcArgNum = 7;
+        int tcArgNum = 5;
         Option taskComplete = OptionBuilder.withArgName("taskcomplete").hasArgs().hasArgs(tcArgNum)
                 .withDescription("Send a TaskComplete message to master").create("tc");
         int rjArgNum = 3;
@@ -177,7 +168,7 @@ public class OpsClient {
         CommandLineParser parser = new BasicParser();
 
         String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-        String[] tcArgs = { "-tc", "1", "taskid-test", "jobid-test", "10.0.0.111", "Administrators-MacBook-Pro.local",
+        String[] tcArgs = { "-tc", "taskid-test", "jobid-test", "192.168.1.79",
                 "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
                 "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
 
@@ -197,11 +188,11 @@ public class OpsClient {
             } else if (commandLine.hasOption("tc")) {
                 String[] vals = commandLine.getOptionValues("tc");
                 if (vals.length != tcArgNum) {
-                    System.out.println("Required arguments: [isMap, taskId, jobId, ip, hostname, path, indexPath]");
+                    System.out.println("Required arguments: [taskId, jobId, ip, path, indexPath]");
                     System.out.println("Wrong arguments: " + Arrays.toString(vals));
                     return;
                 }
-                TaskConf task = new TaskConf(true, vals[1], vals[2], new OpsNode(vals[3], vals[4]), vals[5], vals[6]);
+                MapConf task = new MapConf(vals[0], vals[1], new OpsNode(vals[2]), vals[3], vals[4]);
                 System.out.println("Do taskComplete: " + task.toString());
                 opsClient.taskComplete(task);
             } else if (commandLine.hasOption("rj")) {

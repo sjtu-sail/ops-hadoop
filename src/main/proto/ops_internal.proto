@@ -11,7 +11,7 @@ service OpsInternal {
     rpc transfer (stream Chunk) returns (stream StatusMessage) {}
     rpc registerJob (stream JobMessage) returns (stream JobMessage) {}
     rpc distributeJob (stream JobMessage) returns (stream JobMessage) {}
-    rpc OnTaskComplete (stream TaskMessage) returns (stream TaskMessage) {}
+    rpc OnMapComplete (stream MapMessage) returns (stream MapMessage) {}
     rpc OnShuffle (stream ShuffleMessage) returns (stream ShuffleMessage) {}
 }
 
@@ -28,10 +28,10 @@ message JobMessage {
     string jobConf = 1;
 }
 
-message TaskMessage {
-    string taskConf = 1;
+message MapMessage {
+    string mapConf = 1;
 }
 
 message ShuffleMessage {
-    string taskConf = 1;
+    string mapConf = 1;
 }

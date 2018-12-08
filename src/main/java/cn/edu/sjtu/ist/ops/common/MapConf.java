@@ -18,16 +18,14 @@ package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
 
-public class TaskConf {
-    private final Boolean isMap;
+public class MapConf {
     private final String taskId;
     private final String jobId;
     private final OpsNode opsNode;
     private final String path;
     private final String indexPath;
 
-    public TaskConf(Boolean isMap, String taskId, String jobId, OpsNode node, String path, String indexPath) {
-        this.isMap = isMap;
+    public MapConf(String taskId, String jobId, OpsNode node, String path, String indexPath) {
         this.taskId = taskId;
         this.jobId = jobId;
         this.opsNode = node;
@@ -39,10 +37,6 @@ public class TaskConf {
     public String toString() {
         return new Gson().toJson(this);
         // return "{\"taskId\": " + this.taskId + "}";
-    }
-
-    public Boolean getIsMap() {
-        return this.isMap;
     }
 
     public String getTaskId() {
