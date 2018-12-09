@@ -76,7 +76,6 @@ class OpsTransferer extends Thread {
         logger.info("getPendingShuffle: task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
 
-        // TODO: shuffle file based on index file
         IndexReader indexReader = new IndexReader(shuffle.getTask().getIndexPath().toString());
 
         ManagedChannel channel = ManagedChannelBuilder

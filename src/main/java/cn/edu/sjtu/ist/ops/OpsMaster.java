@@ -31,6 +31,7 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.HeartbeatThread;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 
 public class OpsMaster extends OpsNode {
@@ -45,8 +46,8 @@ public class OpsMaster extends OpsNode {
         super(ip);
 
         Gson gson = new Gson();
-        this.heartbeat = new HeartbeatThread("ops/nodes/master/", gson.toJson(this));
-        this.watcher = new WatcherThread("ops/nodes/worker");
+        this.heartbeat = new HeartbeatThread(OpsUtils.ETCD_NODES_PATH + "/master/", gson.toJson(this));
+        this.watcher = new WatcherThread(OpsUtils.ETCD_NODES_PATH + "/worker");
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         try {

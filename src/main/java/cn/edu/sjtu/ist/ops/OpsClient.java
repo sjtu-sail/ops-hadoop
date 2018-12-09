@@ -35,11 +35,12 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
-import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -61,7 +62,7 @@ public class OpsClient {
         EtcdService.initClient();
         Gson gson = new Gson();
 
-        List<KeyValue> workersKV = EtcdService.getKVs("ops/nodes/worker");
+        List<KeyValue> workersKV = EtcdService.getKVs(OpsUtils.ETCD_NODES_PATH + "/worker");
         if (workersKV.size() == 0) {
             System.err.println("Workers not found from etcd server.");
             return;
@@ -177,8 +178,8 @@ public class OpsClient {
         options.addOption(taskComplete);
 
         try {
-            // commandLine = parser.parse(options, rjArgs);
-            commandLine = parser.parse(options, tcArgs);
+            commandLine = parser.parse(options, rjArgs);
+            // commandLine = parser.parse(options, tcArgs);
             // commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {

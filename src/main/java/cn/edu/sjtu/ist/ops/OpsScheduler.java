@@ -16,27 +16,32 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import cn.edu.sjtu.ist.ops.common.JobConf;
-import cn.edu.sjtu.ist.ops.common.OpsConf;
-import cn.edu.sjtu.ist.ops.common.OpsNode;
-import cn.edu.sjtu.ist.ops.common.OpsTask;
-import cn.edu.sjtu.ist.ops.common.MapConf;
-import cn.edu.sjtu.ist.ops.util.WatcherThread;
-import com.google.gson.Gson;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+
+import com.google.gson.Gson;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import cn.edu.sjtu.ist.ops.common.JobConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
+import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.OpsTask;
+import cn.edu.sjtu.ist.ops.util.EtcdService;
+import cn.edu.sjtu.ist.ops.util.OpsUtils;
+import cn.edu.sjtu.ist.ops.util.OpsWatcher;
+import cn.edu.sjtu.ist.ops.util.WatcherThread;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
 
 public class OpsScheduler extends Thread {
 
@@ -46,13 +51,16 @@ public class OpsScheduler extends Thread {
     private final Random random = new Random();
     private Map<String, ManagedChannel> workerChannels;
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
+    private OpsWatcher jobWatcher;
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs;
     private volatile boolean stopped;
     private Set<OpsTask> pendingOpsTasks;
+    private Gson gson = new Gson();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
+        this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
@@ -92,11 +100,19 @@ public class OpsScheduler extends Thread {
         } catch (InterruptedException e) {
             // TODO: handle exception
         } catch (Exception e) {
-
+            e.printStackTrace();
         } finally {
             if (this.server != null) {
                 this.server.shutdown();
             }
+        }
+    }
+
+    public synchronized void watcherPut(String key, String value) {
+        if (key == OpsUtils.ETCD_JOBS_PATH) {
+            JobConf job = gson.fromJson(value, JobConf.class);
+            this.jobs.put(job.getJobId(), job);
+            logger.info("Get new job: " + job.getJobId());
         }
     }
 
@@ -172,40 +188,8 @@ public class OpsScheduler extends Thread {
     }
 
     public void onDistributeJob(JobConf job) {
-        setupWorkersGRPC();
-        jobs.put(job.getJobId(), job);
-        logger.debug("Workers: " + this.watcherThread.getWorkers());
-
-        for (OpsInternalGrpc.OpsInternalStub stub : this.workerStubs.values()) {
-            StreamObserver<JobMessage> requestObserver = stub.distributeJob(new StreamObserver<JobMessage>() {
-                @Override
-                public void onNext(JobMessage msg) {
-                    logger.debug("DistributeJob response");
-                }
-
-                @Override
-                public void onError(Throwable t) {
-
-                }
-
-                @Override
-                public void onCompleted() {
-
-                }
-            });
-            try {
-                Gson gson = new Gson();
-                logger.debug("distribute " + stub.toString());
-                JobMessage message = JobMessage.newBuilder().setJobConf(gson.toJson(job)).build();
-                requestObserver.onNext(message);
-            } catch (RuntimeException e) {
-                // Cancel RPC
-                requestObserver.onError(e);
-                throw e;
-            }
-            // Mark the end of requests
-            requestObserver.onCompleted();
-        }
+        Gson gson = new Gson();
+        EtcdService.put(OpsUtils.ETCD_JOBS_PATH + "/job-" + job.getJobId() + "-JobConf", gson.toJson(job));
     }
 
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
@@ -235,6 +219,7 @@ public class OpsScheduler extends Thread {
                     Gson gson = new Gson();
                     JobConf job = gson.fromJson(request.getJobConf(), JobConf.class);
                     addPendingOpsTask(new OpsTask(job));
+
                     logger.info("Register Job: " + job.toString());
                     logger.debug("Pending Jobs: " + jobs.toString());
                 }
