@@ -18,27 +18,32 @@ package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
 
-public class MapConf extends TaskConf {
-    private final String path;
-    private final String indexPath;
+public class TaskConf {
+    private final String taskId;
+    private final String jobId;
+    private final OpsNode opsNode;
 
-    public MapConf(String taskId, String jobId, OpsNode node, String path, String indexPath) {
-        super(taskId, jobId, node);
-        this.path = path;
-        this.indexPath = indexPath;
+    public TaskConf(String taskId, String jobId, OpsNode node) {
+        this.taskId = taskId;
+        this.jobId = jobId;
+        this.opsNode = node;
     }
 
     @Override
     public String toString() {
         return new Gson().toJson(this);
-        // return "{\"taskId\": " + this.taskId + "}";
     }
 
-    public String getPath() {
-        return this.path;
+    public String getTaskId() {
+        return this.taskId;
     }
 
-    public String getIndexPath() {
-        return this.indexPath;
+    public String getJobId() {
+        return this.jobId;
     }
+
+    public OpsNode getOpsNode() {
+        return this.opsNode;
+    }
+
 }
