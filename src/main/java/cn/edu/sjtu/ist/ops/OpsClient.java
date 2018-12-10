@@ -82,8 +82,9 @@ public class OpsClient {
     }
 
     public void taskComplete(MapConf task) {
-        EtcdService.put(OpsUtils.ETCD_MAPCOMPLETED_PATH + "/" + task.getOpsNode().getIp() + "-" + task.getTaskId()
-                + "-mapCompleted", gson.toJson(task));
+        EtcdService.put(
+                OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + task.getOpsNode().getIp() + "-" + task.getTaskId(),
+                gson.toJson(task));
     }
 
     public void registerJob(JobConf job) {
@@ -118,8 +119,8 @@ public class OpsClient {
                     "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
                     "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
 
-            commandLine = parser.parse(options, rjArgs);
-            // commandLine = parser.parse(options, tcArgs);
+            // commandLine = parser.parse(options, rjArgs);
+            commandLine = parser.parse(options, tcArgs);
             // commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {

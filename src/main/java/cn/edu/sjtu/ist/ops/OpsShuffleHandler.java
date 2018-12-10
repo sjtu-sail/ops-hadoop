@@ -52,7 +52,6 @@ public class OpsShuffleHandler extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(OpsShuffleHandler.class);
     private final OpsNode host;
     private final Server workerServer;
-    private final Server hadoopServer;
     private final OpsConf opsConf;
     private final OpsWatcher jobWatcher;
     private final OpsWatcher mapCompletedWatcher;
@@ -71,15 +70,14 @@ public class OpsShuffleHandler extends Thread {
         this.host = host;
         OpsUtils.initLocalDir(this.opsConf.getDir());
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
-        this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH, "/" + host.getIp() + "-");
+        this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH,
+                "/mapCompleted-" + host.getIp() + "-");
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
                 .usePlaintext().build();
         this.masterStub = OpsInternalGrpc.newStub(masterChannel);
 
         this.workerServer = ServerBuilder.forPort(this.opsConf.getPortWorkerGRPC()).addService(new OpsInternalService())
-                .build();
-        this.hadoopServer = ServerBuilder.forPort(this.opsConf.getPortHadoopGRPC()).addService(new OpsHadoopService())
                 .build();
     }
 
@@ -92,7 +90,6 @@ public class OpsShuffleHandler extends Thread {
         this.setName("ops-shuffle-handler");
         try {
             this.workerServer.start();
-            this.hadoopServer.start();
             logger.info("gRPC workerServer started, listening on " + this.opsConf.getPortWorkerGRPC());
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
             this.jobWatcher.start();
@@ -103,10 +100,9 @@ public class OpsShuffleHandler extends Thread {
                 task = this.getPendingTask();
                 this.taskComplete(task);
             }
-            // workerServer.awaitTermination();
-            // masterChannel.wait();
         } catch (Exception e) {
             // TODO: handle exception
+            e.printStackTrace();
         }
     }
 
@@ -215,22 +211,6 @@ public class OpsShuffleHandler extends Thread {
         }
         // Mark the end of requests
         requestObserver.onCompleted();
-    }
-
-    private class OpsHadoopService extends HadoopOpsGrpc.HadoopOpsImplBase {
-        @Override
-        public void notify(HadoopMessage request, StreamObserver<Empty> responseObserver) {
-
-            OpsNode node = new OpsNode(request.getIp());
-            MapConf task = new MapConf(request.getTaskId(), request.getJobId(), node, request.getPath(),
-                    request.getIndexPath());
-
-            addpendingTasks(task);
-
-            Empty empty = Empty.newBuilder().build();
-            responseObserver.onNext(empty);
-            responseObserver.onCompleted();
-        }
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
