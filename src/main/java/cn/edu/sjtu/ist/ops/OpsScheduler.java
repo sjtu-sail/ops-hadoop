@@ -79,6 +79,7 @@ public class OpsScheduler extends Thread {
     public void run() {
         this.setName("ops-scheduler");
         try {
+            this.jobWatcher.start();
             this.server.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
@@ -88,9 +89,6 @@ public class OpsScheduler extends Thread {
                 switch (opsTask.getType()) {
                 case ONSHUFFLE:
                     onShuffle(opsTask.getPendingTask());
-                    break;
-                case DISTRIBUTEJOB:
-                    onDistributeJob(opsTask.getPendingJob());
                     break;
                 default:
                     break;
@@ -112,7 +110,7 @@ public class OpsScheduler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
-            logger.info("Get new job: " + job.getJobId());
+            logger.info("Add new job: " + job.getJobId());
         }
     }
 
@@ -187,20 +185,11 @@ public class OpsScheduler extends Thread {
         requestObserver.onCompleted();
     }
 
-    public void onDistributeJob(JobConf job) {
-        Gson gson = new Gson();
-        EtcdService.put(OpsUtils.ETCD_JOBS_PATH + "/job-" + job.getJobId() + "-JobConf", gson.toJson(job));
-    }
-
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
         switch (opsTask.getType()) {
         case ONSHUFFLE:
             MapConf task = opsTask.getPendingTask();
             // job.mapTaskCompleted(task);
-            this.pendingOpsTasks.add(opsTask);
-            notifyAll();
-            break;
-        case DISTRIBUTEJOB:
             this.pendingOpsTasks.add(opsTask);
             notifyAll();
             break;
@@ -211,30 +200,6 @@ public class OpsScheduler extends Thread {
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
-        @Override
-        public StreamObserver<JobMessage> registerJob(StreamObserver<JobMessage> responseObserver) {
-            return new StreamObserver<JobMessage>() {
-                @Override
-                public void onNext(JobMessage request) {
-                    Gson gson = new Gson();
-                    JobConf job = gson.fromJson(request.getJobConf(), JobConf.class);
-                    addPendingOpsTask(new OpsTask(job));
-
-                    logger.info("Register Job: " + job.toString());
-                    logger.debug("Pending Jobs: " + jobs.toString());
-                }
-
-                @Override
-                public void onError(Throwable t) {
-                    logger.warn("Encountered error in exchange", t);
-                }
-
-                @Override
-                public void onCompleted() {
-                    responseObserver.onCompleted();
-                }
-            };
-        }
 
         @Override
         public StreamObserver<MapMessage> onMapComplete(StreamObserver<MapMessage> responseObserver) {

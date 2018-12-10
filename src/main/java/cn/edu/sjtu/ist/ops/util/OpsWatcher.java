@@ -16,20 +16,15 @@
 
 package cn.edu.sjtu.ist.ops.util;
 
-import cn.edu.sjtu.ist.ops.OpsScheduler;
-import cn.edu.sjtu.ist.ops.OpsShuffleHandler;
-import cn.edu.sjtu.ist.ops.common.OpsNode;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.watch.WatchEvent;
 import com.coreos.jetcd.watch.WatchResponse;
-import com.google.gson.Gson;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import cn.edu.sjtu.ist.ops.OpsScheduler;
+import cn.edu.sjtu.ist.ops.OpsShuffleHandler;
 
 public class OpsWatcher extends Thread {
 
@@ -37,31 +32,49 @@ public class OpsWatcher extends Thread {
     private OpsScheduler scheduler = null;
     private OpsShuffleHandler shuffleHandler = null;
     private final String key;
+    private final String prefix;
 
     public OpsWatcher(OpsScheduler scheduler, String key) {
         this.scheduler = scheduler;
         this.key = key;
+        this.prefix = null;
         this.setName("ops-SchedulerWatcher-" + this.key);
-        logger.debug("OpsWatcher");
+        logger.debug("ops-SchedulerWatcher-" + this.key + " start");
     }
 
     public OpsWatcher(OpsShuffleHandler shuffleHandler, String key) {
         this.shuffleHandler = shuffleHandler;
         this.key = key;
+        this.prefix = null;
         this.setName("ops-ShuffleHandlerWatcher-" + this.key);
-        logger.debug("OpsWatcher");
+        logger.debug("ops-ShuffleHandlerWatcher-" + this.key + " start");
+    }
+
+    public OpsWatcher(OpsShuffleHandler shuffleHandler, String key, String prefix) {
+        this.shuffleHandler = shuffleHandler;
+        this.key = key;
+        this.prefix = prefix;
+        this.setName("ops-ShuffleHandlerWatcher-" + this.key + this.prefix);
+        logger.debug("ops-ShuffleHandlerWatcher-" + this.key + this.prefix + " start");
     }
 
     public void run() {
-        Watcher watcher = EtcdService.watch(this.key);
-        logger.debug("Watch: " + this.key);
+        Watcher watcher;
+        if (this.prefix == null) {
+            watcher = EtcdService.watch(this.key);
+            logger.debug("Watch: " + this.key);
+        } else {
+            watcher = EtcdService.watch(this.key + this.prefix);
+            logger.debug("Watch: " + this.key + this.prefix);
+        }
+
         while (true) {
             try {
                 WatchResponse response = watcher.listen();
                 WatchEvent event = response.getEvents().get(0);
                 switch (event.getEventType()) {
                 case PUT:
-                    logger.debug("put");
+                    logger.debug("put: " + event.getKeyValue().getKey().toStringUtf8());
                     if (this.scheduler != null) {
                         this.scheduler.watcherPut(key, event.getKeyValue().getValue().toStringUtf8());
                     } else {

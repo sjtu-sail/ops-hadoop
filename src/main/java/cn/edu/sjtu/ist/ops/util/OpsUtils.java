@@ -25,9 +25,9 @@ import java.nio.file.Paths;
 import org.apache.commons.io.FileUtils;
 
 public class OpsUtils {
-
     public static String ETCD_JOBS_PATH = "ops/jobs";
     public static String ETCD_NODES_PATH = "ops/nodes";
+    public static String ETCD_MAPCOMPLETED_PATH = "ops/shuffle/mapCompleted";
 
     public static void initLocalDir(String localDir) {
         try {

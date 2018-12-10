@@ -50,11 +50,13 @@ import io.grpc.stub.StreamObserver;
 public class OpsShuffleHandler extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsShuffleHandler.class);
+    private final OpsNode host;
     private final Server workerServer;
     private final Server hadoopServer;
-    private final OpsWatcher jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
-    private volatile boolean stopped = false;
     private final OpsConf opsConf;
+    private final OpsWatcher jobWatcher;
+    private final OpsWatcher mapCompletedWatcher;
+    private volatile boolean stopped = false;
     private Set<ShuffleConf> pendingShuffles = new HashSet<>();
     private Set<MapConf> pendingTasks = new HashSet<>();
     private HashMap<String, JobConf> jobs = new HashMap<>();
@@ -64,9 +66,12 @@ public class OpsShuffleHandler extends Thread {
     private final ManagedChannel masterChannel;
     private final OpsInternalGrpc.OpsInternalStub masterStub;
 
-    public OpsShuffleHandler(OpsConf opsConf) {
+    public OpsShuffleHandler(OpsConf opsConf, OpsNode host) {
         this.opsConf = opsConf;
+        this.host = host;
         OpsUtils.initLocalDir(this.opsConf.getDir());
+        this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
+        this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH, "/" + host.getIp() + "-");
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
                 .usePlaintext().build();
@@ -91,6 +96,7 @@ public class OpsShuffleHandler extends Thread {
             logger.info("gRPC workerServer started, listening on " + this.opsConf.getPortWorkerGRPC());
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
             this.jobWatcher.start();
+            this.mapCompletedWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
                 MapConf task = null;
@@ -108,7 +114,22 @@ public class OpsShuffleHandler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
-            logger.info("Get new job: " + job.getJobId());
+            logger.info("Add new job: " + job.getJobId());
+
+        } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
+            MapConf map = gson.fromJson(value, MapConf.class);
+            if (!jobs.containsKey(map.getJobId())) {
+                logger.error("JobId not found: " + map.getJobId());
+                return;
+            }
+            JobConf job = jobs.get(map.getJobId());
+            TaskPreAlloc preAlloc = job.getReducePreAlloc();
+            for (OpsNode node : preAlloc.getNodesMap().values()) {
+                for (Integer num : preAlloc.getTaskOrder(node.getIp())) {
+                    ShuffleConf shuffle = new ShuffleConf(map, node, num);
+                    addpendingShuffles(shuffle);
+                }
+            }
         }
     }
 
@@ -232,41 +253,6 @@ public class OpsShuffleHandler extends Thread {
                     } catch (Exception e) {
                         e.printStackTrace();
                         // TODO: handle exception
-                    }
-                }
-
-                @Override
-                public void onError(Throwable t) {
-                    logger.warn("Encountered error in exchange", t);
-                }
-
-                @Override
-                public void onCompleted() {
-                    responseObserver.onCompleted();
-                }
-            };
-        }
-
-        @Override
-        public StreamObserver<ShuffleMessage> onShuffle(StreamObserver<ShuffleMessage> responseObserver) {
-            return new StreamObserver<ShuffleMessage>() {
-                @Override
-                public void onNext(ShuffleMessage request) {
-                    // responseObserver.onNext(ShuffleMessage.newBuilder().setMsg("ShuffleMessage").build());
-
-                    Gson gson = new Gson();
-                    MapConf task = gson.fromJson(request.getMapConf(), MapConf.class);
-                    if (!jobs.containsKey(task.getJobId())) {
-                        logger.error("JobId not found: " + task.getJobId());
-                        return;
-                    }
-                    JobConf job = jobs.get(task.getJobId());
-                    TaskPreAlloc preAlloc = job.getReducePreAlloc();
-                    for (OpsNode node : preAlloc.getNodesMap().values()) {
-                        for (Integer num : preAlloc.getTaskOrder(node.getIp())) {
-                            ShuffleConf shuffle = new ShuffleConf(task, node, num);
-                            addpendingShuffles(shuffle);
-                        }
                     }
                 }
 

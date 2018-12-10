@@ -56,7 +56,7 @@ public class OpsWorker extends OpsNode {
             OpsConf opsConf = new OpsConf(master, opsConfig.getOpsWorkerLocalDir(), opsConfig.getOpsMasterPortGRPC(),
                     opsConfig.getOpsWorkerPortGRPC(), opsConfig.getOpsWorkerPortHadoopGRPC());
 
-            shuffleHandler = new OpsShuffleHandler(opsConf);
+            shuffleHandler = new OpsShuffleHandler(opsConf, this);
 
             transferers = new OpsTransferer[1];
             for (int i = 0; i < transferers.length; i++) {

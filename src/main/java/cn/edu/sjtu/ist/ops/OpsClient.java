@@ -16,6 +16,7 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -41,26 +42,17 @@ import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.stub.StreamObserver;
 
 public class OpsClient {
 
     private OpsNode master;
     private List<OpsNode> workers = new ArrayList<>();
     private OpsConf opsConf;
-    private ManagedChannel masterChannel;
-    private ManagedChannel workerChannel;
-    private ManagedChannel hadoopChannel;
-    private OpsInternalGrpc.OpsInternalStub workerStub;
-    private OpsInternalGrpc.OpsInternalStub masterStub;
-    private HadoopOpsGrpc.HadoopOpsStub hadoopStub;
+    private Gson gson = new Gson();
 
     public OpsClient() {
 
         EtcdService.initClient();
-        Gson gson = new Gson();
 
         List<KeyValue> workersKV = EtcdService.getKVs(OpsUtils.ETCD_NODES_PATH + "/worker");
         if (workersKV.size() == 0) {
@@ -90,65 +82,12 @@ public class OpsClient {
     }
 
     public void taskComplete(MapConf task) {
-        this.hadoopChannel = ManagedChannelBuilder.forAddress(task.getOpsNode().getIp(), opsConf.getPortHadoopGRPC())
-                .usePlaintext().build();
-        this.hadoopStub = HadoopOpsGrpc.newStub(this.hadoopChannel);
-        HadoopMessage request = HadoopMessage.newBuilder().setTaskId(task.getTaskId()).setJobId(task.getJobId())
-                .setIp(task.getOpsNode().getIp()).setPath(task.getPath().toString())
-                .setIndexPath(task.getIndexPath().toString()).build();
-        StreamObserver<Empty> requestObserver = new StreamObserver<Empty>() {
-            @Override
-            public void onNext(Empty msg) {
-
-            }
-
-            @Override
-            public void onError(Throwable t) {
-
-            }
-
-            @Override
-            public void onCompleted() {
-                hadoopChannel.shutdown();
-            }
-        };
-        System.out.println("Notify " + task.getOpsNode().getIp() + ":" + opsConf.getPortHadoopGRPC());
-        hadoopStub.notify(request, requestObserver);
+        EtcdService.put(OpsUtils.ETCD_MAPCOMPLETED_PATH + "/" + task.getOpsNode().getIp() + "-" + task.getTaskId()
+                + "-mapCompleted", gson.toJson(task));
     }
 
     public void registerJob(JobConf job) {
-        this.masterChannel = ManagedChannelBuilder
-                .forAddress(this.opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC()).usePlaintext().build();
-        this.masterStub = OpsInternalGrpc.newStub(this.masterChannel);
-        StreamObserver<JobMessage> requestObserver = masterStub.registerJob(new StreamObserver<JobMessage>() {
-            @Override
-            public void onNext(JobMessage msg) {
-                System.out.println("ShuffleHandler: " + msg.getJobConf());
-            }
-
-            @Override
-            public void onError(Throwable t) {
-
-            }
-
-            @Override
-            public void onCompleted() {
-                masterChannel.shutdown();
-            }
-        });
-
-        try {
-            Gson gson = new Gson();
-            System.out.println(gson.toJson(job));
-            JobMessage message = JobMessage.newBuilder().setJobConf(gson.toJson(job)).build();
-            requestObserver.onNext(message);
-        } catch (RuntimeException e) {
-            // Cancel RPC
-            requestObserver.onError(e);
-            throw e;
-        }
-        // Mark the end of requests
-        requestObserver.onCompleted();
+        EtcdService.put(OpsUtils.ETCD_JOBS_PATH + "/job-" + job.getJobId() + "-JobConf", gson.toJson(job));
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -168,16 +107,17 @@ public class OpsClient {
         Options options = new Options();
         CommandLineParser parser = new BasicParser();
 
-        String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-        String[] tcArgs = { "-tc", "taskid-test", "jobid-test", "192.168.1.79",
-                "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
-                "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
-
         options.addOption(help);
         options.addOption(registerJob);
         options.addOption(taskComplete);
 
         try {
+            InetAddress addr = InetAddress.getLocalHost();
+            String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
+            String[] tcArgs = { "-tc", "taskid-test", "jobid-test", addr.getHostAddress(),
+                    "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
+                    "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
+
             commandLine = parser.parse(options, rjArgs);
             // commandLine = parser.parse(options, tcArgs);
             // commandLine = parser.parse(options, args);
@@ -209,6 +149,8 @@ public class OpsClient {
             }
 
         } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
