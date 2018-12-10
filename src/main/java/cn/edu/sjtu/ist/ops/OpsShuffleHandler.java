@@ -39,6 +39,7 @@ import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
 import io.grpc.ManagedChannel;
@@ -57,7 +58,7 @@ public class OpsShuffleHandler extends Thread {
     private final OpsWatcher mapCompletedWatcher;
     private volatile boolean stopped = false;
     private Set<ShuffleConf> pendingShuffles = new HashSet<>();
-    private Set<MapConf> pendingTasks = new HashSet<>();
+    private Set<ShuffleConf> pendingCompletedShuffles = new HashSet<>();
     private HashMap<String, JobConf> jobs = new HashMap<>();
     private final Random random = new Random();
     private Gson gson = new Gson();
@@ -66,6 +67,8 @@ public class OpsShuffleHandler extends Thread {
     private final OpsInternalGrpc.OpsInternalStub masterStub;
 
     public OpsShuffleHandler(OpsConf opsConf, OpsNode host) {
+        EtcdService.initClient();
+
         this.opsConf = opsConf;
         this.host = host;
         OpsUtils.initLocalDir(this.opsConf.getDir());
@@ -96,9 +99,9 @@ public class OpsShuffleHandler extends Thread {
             this.mapCompletedWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
-                MapConf task = null;
-                task = this.getPendingTask();
-                this.taskComplete(task);
+                ShuffleConf shuffle = null;
+                shuffle = this.getCompletedShuffle();
+                this.shuffleCompleted(shuffle);
             }
         } catch (Exception e) {
             // TODO: handle exception
@@ -123,7 +126,7 @@ public class OpsShuffleHandler extends Thread {
             for (OpsNode node : preAlloc.getNodesMap().values()) {
                 for (Integer num : preAlloc.getTaskOrder(node.getIp())) {
                     ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                    addpendingShuffles(shuffle);
+                    addPendingShuffles(shuffle);
                 }
             }
         }
@@ -147,21 +150,21 @@ public class OpsShuffleHandler extends Thread {
         return shuffle;
     }
 
-    public synchronized MapConf getPendingTask() throws InterruptedException {
-        while (pendingTasks.isEmpty()) {
+    public synchronized ShuffleConf getCompletedShuffle() throws InterruptedException {
+        while (this.pendingCompletedShuffles.isEmpty()) {
             wait();
         }
 
-        MapConf task = null;
+        ShuffleConf task = null;
 
-        Iterator<MapConf> iter = pendingTasks.iterator();
-        int numToPick = random.nextInt(pendingTasks.size());
+        Iterator<ShuffleConf> iter = this.pendingCompletedShuffles.iterator();
+        int numToPick = random.nextInt(this.pendingCompletedShuffles.size());
         for (int i = 0; i <= numToPick; ++i) {
             task = iter.next();
         }
-        pendingTasks.remove(task);
+        this.pendingCompletedShuffles.remove(task);
 
-        logger.debug("Get pendingTask " + task.toString());
+        logger.debug("Get pendingCompletedShuffle " + task.toString());
         return task;
     }
 
@@ -169,21 +172,23 @@ public class OpsShuffleHandler extends Thread {
         return this.jobs.get(jobId);
     }
 
-    public synchronized void addpendingShuffles(ShuffleConf shuffle) {
+    public synchronized void addPendingShuffles(ShuffleConf shuffle) {
         pendingShuffles.add(shuffle);
         logger.debug("Add pendingShuffles task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
         notifyAll();
     }
 
-    public synchronized void addpendingTasks(MapConf task) {
-        pendingTasks.add(task);
-        logger.debug("Add pendingTasks task " + task.getTaskId() + " to node " + task.getOpsNode().getIp());
+    public synchronized void addPendingCompletedShuffle(ShuffleConf shuffle) {
+        pendingCompletedShuffles.add(shuffle);
+        logger.debug("Add pendingCompletedShuffle: " + shuffle.getDstNode().getIp() + "-" + shuffle.getNum() + "-"
+                + shuffle.getTask().getTaskId());
         notifyAll();
     }
 
-    public void taskComplete(MapConf task) {
-
+    public void shuffleCompleted(ShuffleConf shuffle) {
+        EtcdService.put(OpsUtils.ETCD_SHUFFLECOMPLETED_PATH + "/shuffleCompleted-" + shuffle.getDstNode().getIp() + "-"
+                + shuffle.getNum() + "-" + shuffle.getTask().getTaskId(), gson.toJson(shuffle));
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {

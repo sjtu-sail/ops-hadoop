@@ -94,6 +94,7 @@ class OpsTransferer extends Thread {
 
             @Override
             public void onCompleted() {
+                shuffleHandler.addPendingCompletedShuffle(shuffle);
                 channel.shutdown();
             }
         });
