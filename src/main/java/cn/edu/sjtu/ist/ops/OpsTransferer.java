@@ -116,6 +116,7 @@ class OpsTransferer extends Thread {
 
             byte[] buffer = new byte[bufferSize];
             int length;
+            boolean isFirstChunk = true;
             while (true) {
                 if (partLength < bufferSize) {
                     break;
@@ -126,12 +127,14 @@ class OpsTransferer extends Thread {
                     input.close();
                     throw new IllegalArgumentException("Unexpected file length.");
                 }
-                Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length))
-                        .build();
+                Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
+                        .setContent(ByteString.copyFrom(buffer, 0, length)).build();
                 requestObserver.onNext(chunk);
+                isFirstChunk = false;
             }
             length = input.read(buffer, 0, (int) partLength);
-            Chunk chunk = Chunk.newBuilder().setPath(path).setContent(ByteString.copyFrom(buffer, 0, length)).build();
+            Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
+                    .setContent(ByteString.copyFrom(buffer, 0, length)).build();
             requestObserver.onNext(chunk);
 
         } catch (RuntimeException e) {

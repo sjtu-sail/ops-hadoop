@@ -16,7 +16,6 @@
 
 package cn.edu.sjtu.ist.ops;
 
-import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,14 +29,15 @@ import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
-import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
@@ -183,34 +183,7 @@ public class OpsShuffleHandler extends Thread {
     }
 
     public void taskComplete(MapConf task) {
-        StreamObserver<MapMessage> requestObserver = masterStub.onMapComplete(new StreamObserver<MapMessage>() {
-            @Override
-            public void onNext(MapMessage msg) {
-                logger.debug("ShuffleHandler: " + msg.getMapConf());
-            }
 
-            @Override
-            public void onError(Throwable t) {
-
-            }
-
-            @Override
-            public void onCompleted() {
-
-            }
-        });
-
-        try {
-            Gson gson = new Gson();
-            MapMessage message = MapMessage.newBuilder().setMapConf(gson.toJson(task)).build();
-            requestObserver.onNext(message);
-        } catch (RuntimeException e) {
-            // Cancel RPC
-            requestObserver.onError(e);
-            throw e;
-        }
-        // Mark the end of requests
-        requestObserver.onCompleted();
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
@@ -220,12 +193,18 @@ public class OpsShuffleHandler extends Thread {
                 @Override
                 public void onNext(Chunk chunk) {
                     try {
+                        boolean isFirstChunk = chunk.getIsFirstChunk();
                         String path = chunk.getPath();
                         File file = new File(opsConf.getDir(), path);
-                        if (!file.exists()) {
-                            FileUtils.forceMkdirParent(file);
-                            file.createNewFile();
-                            logger.debug("mkdir & create file for shuffle data: " + file.toString());
+                        if (isFirstChunk) {
+                            if (file.exists()) {
+                                FileUtils.forceDelete(file);
+                                logger.debug("Delete the namesake file: " + file.toString());
+                            } else {
+                                FileUtils.forceMkdirParent(file);
+                                file.createNewFile();
+                                logger.debug("mkdir & create file for shuffle data: " + file.toString());
+                            }
                         }
                         ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
                         byteSink.write(chunk.getContent().toByteArray());

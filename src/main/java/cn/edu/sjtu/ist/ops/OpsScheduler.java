@@ -33,21 +33,16 @@ import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.OpsTask;
-import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
 
 public class OpsScheduler extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsScheduler.class);
 
-    private final Server server;
     private final Random random = new Random();
     private Map<String, ManagedChannel> workerChannels;
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
@@ -71,8 +66,6 @@ public class OpsScheduler extends Thread {
 
         setupWorkersGRPC();
 
-        this.server = ServerBuilder.forPort(this.opsConf.getPortMasterGRPC()).addService(new OpsInternalService())
-                .build();
     }
 
     @Override
@@ -80,7 +73,6 @@ public class OpsScheduler extends Thread {
         this.setName("ops-scheduler");
         try {
             this.jobWatcher.start();
-            this.server.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
@@ -100,9 +92,7 @@ public class OpsScheduler extends Thread {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (this.server != null) {
-                this.server.shutdown();
-            }
+
         }
     }
 
@@ -146,43 +136,7 @@ public class OpsScheduler extends Thread {
     }
 
     public void onShuffle(MapConf task) {
-        if (!this.watcherThread.getWorkers().contains(task.getOpsNode())) {
-            logger.error("Worker not found: " + task.getOpsNode());
-            return;
-        }
-        if (!this.workerStubs.containsKey(task.getOpsNode().getIp())) {
-            setupWorkersGRPC();
-        }
 
-        StreamObserver<ShuffleMessage> requestObserver = this.workerStubs.get(task.getOpsNode().getIp())
-                .onShuffle(new StreamObserver<ShuffleMessage>() {
-                    @Override
-                    public void onNext(ShuffleMessage msg) {
-                        logger.debug("");
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-
-                    }
-
-                    @Override
-                    public void onCompleted() {
-
-                    }
-                });
-        try {
-            Gson gson = new Gson();
-            logger.debug("Shuffle task: " + task.toString());
-            ShuffleMessage message = ShuffleMessage.newBuilder().setMapConf(gson.toJson(task)).build();
-            requestObserver.onNext(message);
-        } catch (RuntimeException e) {
-            // Cancel RPC
-            requestObserver.onError(e);
-            throw e;
-        }
-        // Mark the end of requests
-        requestObserver.onCompleted();
     }
 
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
@@ -197,31 +151,5 @@ public class OpsScheduler extends Thread {
             break;
         }
         logger.debug("Add pending OpsTask: " + opsTask.toString());
-    }
-
-    private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
-
-        @Override
-        public StreamObserver<MapMessage> onMapComplete(StreamObserver<MapMessage> responseObserver) {
-            return new StreamObserver<MapMessage>() {
-                @Override
-                public void onNext(MapMessage request) {
-                    responseObserver.onNext(MapMessage.newBuilder().setMapConf("Response taskComplete").build());
-                    Gson gson = new Gson();
-                    MapConf task = gson.fromJson(request.getMapConf(), MapConf.class);
-                    addPendingOpsTask(new OpsTask(task));
-                }
-
-                @Override
-                public void onError(Throwable t) {
-                    logger.warn("Encountered error in exchange", t);
-                }
-
-                @Override
-                public void onCompleted() {
-                    responseObserver.onCompleted();
-                }
-            };
-        }
     }
 }

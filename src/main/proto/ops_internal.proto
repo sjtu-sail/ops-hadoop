@@ -9,29 +9,14 @@ package opsinternal;
 
 service OpsInternal {
     rpc transfer (stream Chunk) returns (stream StatusMessage) {}
-    rpc registerJob (stream JobMessage) returns (stream JobMessage) {}
-    rpc distributeJob (stream JobMessage) returns (stream JobMessage) {}
-    rpc OnMapComplete (stream MapMessage) returns (stream MapMessage) {}
-    rpc OnShuffle (stream ShuffleMessage) returns (stream ShuffleMessage) {}
 }
 
 message Chunk {
-    string path = 1;
-    bytes content = 2;
+    bool isFirstChunk = 1;
+    string path = 2;
+    bytes content = 3;
 }
 
 message StatusMessage {
     int32 status = 1;
-}
-
-message JobMessage {
-    string jobConf = 1;
-}
-
-message MapMessage {
-    string mapConf = 1;
-}
-
-message ShuffleMessage {
-    string mapConf = 1;
 }
