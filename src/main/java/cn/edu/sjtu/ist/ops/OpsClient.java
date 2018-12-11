@@ -82,13 +82,12 @@ public class OpsClient {
     }
 
     public void taskComplete(MapConf task) {
-        EtcdService.put(
-                OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + task.getOpsNode().getIp() + "-" + task.getTaskId(),
+        EtcdService.put(OpsUtils.buildKeyMapCompleted(task.getOpsNode().getIp(), task.getJobId(), task.getTaskId()),
                 gson.toJson(task));
     }
 
     public void registerJob(JobConf job) {
-        EtcdService.put(OpsUtils.ETCD_JOBS_PATH + "/job-" + job.getJobId() + "-JobConf", gson.toJson(job));
+        EtcdService.put(OpsUtils.buildKeyJob(job.getJobId()), gson.toJson(job));
     }
 
     public static void main(String[] args) throws InterruptedException {

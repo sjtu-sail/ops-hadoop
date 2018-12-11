@@ -8,15 +8,15 @@ option objc_class_prefix = "OPS";
 package hadoopops;
 
 service HadoopOps {
-    rpc Notify (HadoopMessage) returns (Empty) {}
+    rpc GetReduceNum (ReduceMessage) returns (NumMessage) {}
 }
 
-message HadoopMessage {
+message ReduceMessage {
     string taskId = 1;
     string jobId = 2;
     string ip = 3;
-    string path = 4;
-    string indexPath = 5;
 }
 
-message Empty {}
+message NumMessage {
+    int32 num = 1;
+}

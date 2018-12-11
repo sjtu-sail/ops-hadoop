@@ -30,6 +30,19 @@ public class OpsUtils {
     public static String ETCD_MAPCOMPLETED_PATH = "ops/shuffle/mapCompleted";
     public static String ETCD_SHUFFLECOMPLETED_PATH = "ops/shuffle/shuffleCompleted";
 
+    public static String buildKeyJob(String jobId) {
+        return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId;
+    }
+
+    public static String buildKeyMapCompleted(String nodeIp, String jobId, String mapId) {
+        return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + nodeIp + "-" + jobId + "-" + mapId;
+    }
+
+    public static String buildKeyShuffleCompleted(String dstNodeIp, String jobId, String num, String mapId) {
+        return OpsUtils.ETCD_SHUFFLECOMPLETED_PATH + "/shuffleCompleted-" + dstNodeIp + "-" + jobId + "-" + num + "-"
+                + mapId;
+    }
+
     public static void initLocalDir(String localDir) {
         try {
             File dir = new File(localDir);

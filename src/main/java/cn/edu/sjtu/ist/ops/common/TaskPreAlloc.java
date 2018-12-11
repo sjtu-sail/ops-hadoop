@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.Map;
 
 public class TaskPreAlloc {
-    private final int numTasks;
-    private final int numNodes;
+    private final Integer numTasks;
+    private final Integer numNodes;
     private Map<String, OpsNode> nodesMap = new HashMap<>();
     private Map<String, List<Integer>> taskOrder = new HashMap<>();
 
-    public TaskPreAlloc(int numTasks, List<OpsNode> nodes) {
+    public TaskPreAlloc(Integer numTasks, List<OpsNode> nodes) {
         this.numTasks = numTasks;
         this.numNodes = nodes.size();
         if (this.numNodes == 0) {
@@ -41,7 +41,7 @@ public class TaskPreAlloc {
             this.taskOrder.put(node.getIp(), new ArrayList<>());
         }
         Iterator<List<Integer>> iter = this.taskOrder.values().iterator();
-        for (int i = 0; i < numTasks; i++) {
+        for (Integer i = 0; i < numTasks; i++) {
             iter.next().add(i);
             if (!iter.hasNext()) {
                 iter = this.taskOrder.values().iterator();
@@ -57,11 +57,11 @@ public class TaskPreAlloc {
         return taskOrder.get(nodesMap.get(ip).getIp());
     }
 
-    public int getNumTasks() {
+    public Integer getNumTasks() {
         return this.numTasks;
     }
 
-    public int getNumNodes() {
+    public Integer getNumNodes() {
         return this.numNodes;
     }
 
