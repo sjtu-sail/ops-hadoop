@@ -20,15 +20,8 @@ import com.google.gson.Gson;
 
 public class ReduceConf extends TaskConf {
 
-    private final Integer reduceNum;
-
-    public ReduceConf(String taskId, String jobId, OpsNode node, Integer reduceNum) {
+    public ReduceConf(String taskId, String jobId, OpsNode node) {
         super(taskId, jobId, node);
-        this.reduceNum = reduceNum;
-    }
-
-    public Integer getReduceNum() {
-        return this.reduceNum;
     }
 
     @Override

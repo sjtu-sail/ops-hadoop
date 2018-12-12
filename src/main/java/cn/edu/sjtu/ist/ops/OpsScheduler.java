@@ -33,6 +33,8 @@ import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.OpsTask;
+import cn.edu.sjtu.ist.ops.common.ReduceConf;
+import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
 import cn.edu.sjtu.ist.ops.util.WatcherThread;
@@ -47,6 +49,7 @@ public class OpsScheduler extends Thread {
     private Map<String, ManagedChannel> workerChannels;
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
     private OpsWatcher jobWatcher;
+    private OpsWatcher reduceWatcher;
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs;
@@ -56,6 +59,7 @@ public class OpsScheduler extends Thread {
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
+        this.reduceWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKS_PATH);
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
@@ -73,6 +77,7 @@ public class OpsScheduler extends Thread {
         this.setName("ops-scheduler");
         try {
             this.jobWatcher.start();
+            this.reduceWatcher.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
@@ -80,7 +85,10 @@ public class OpsScheduler extends Thread {
                 opsTask = this.getPendingOpsTask();
                 switch (opsTask.getType()) {
                 case ONSHUFFLE:
-                    onShuffle(opsTask.getPendingTask());
+                    onShuffle(opsTask.getPendingMap());
+                    break;
+                case REGISTER_REDUCE:
+                    registerReduce(opsTask.getPendingReduce(), opsTask.getReduceNum());
                     break;
                 default:
                     break;
@@ -101,6 +109,13 @@ public class OpsScheduler extends Thread {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
             logger.info("Add new job: " + job.getJobId());
+        } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
+            ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
+            JobConf job = this.jobs.get(reduce.getJobId());
+            Integer reduceNum = job.distributeReduceNum(reduce.getOpsNode().getIp());
+            this.jobs.put(reduce.getJobId(), job);
+            this.addPendingOpsTask(new OpsTask(reduce, reduceNum));
+            logger.info("Register new reduce task: " + reduce.toString());
         }
     }
 
@@ -139,11 +154,22 @@ public class OpsScheduler extends Thread {
 
     }
 
+    public void registerReduce(ReduceConf reduce, Integer reduceNum) {
+        logger.debug("registerReduce: "
+                + OpsUtils.buildKeyReduceNum(reduce.getOpsNode().getIp(), reduce.getJobId(), reduce.getTaskId()));
+        EtcdService.put(OpsUtils.buildKeyReduceNum(reduce.getOpsNode().getIp(), reduce.getJobId(), reduce.getTaskId()),
+                reduceNum.toString());
+    }
+
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
         switch (opsTask.getType()) {
         case ONSHUFFLE:
-            MapConf task = opsTask.getPendingTask();
+            // MapConf task = opsTask.getPendingMap();
             // job.mapTaskCompleted(task);
+            this.pendingOpsTasks.add(opsTask);
+            notifyAll();
+            break;
+        case REGISTER_REDUCE:
             this.pendingOpsTasks.add(opsTask);
             notifyAll();
             break;

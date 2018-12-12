@@ -37,6 +37,10 @@ public class JobConf {
         return this.reducePreAlloc;
     }
 
+    public Integer distributeReduceNum(String ip) {
+        return this.reducePreAlloc.distributeReduceNum(ip);
+    }
+
     public String getJobId() {
         return this.jobId;
     }

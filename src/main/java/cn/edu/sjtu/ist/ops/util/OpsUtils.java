@@ -30,6 +30,7 @@ public class OpsUtils {
     public static String ETCD_MAPCOMPLETED_PATH = "ops/shuffle/mapCompleted";
     public static String ETCD_SHUFFLECOMPLETED_PATH = "ops/shuffle/shuffleCompleted";
     public static String ETCD_REDUCETASKS_PATH = "ops/tasks/reduceTasks";
+    public static String ETCD_REDUCENUM_PATH = "ops/shuffle/reduceNum";
 
     public static String buildKeyJob(String jobId) {
         return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId;
@@ -45,11 +46,11 @@ public class OpsUtils {
     }
 
     public static String buildKeyReduceTask(String nodeIp, String jobId, String reduceId) {
-        return OpsUtils.ETCD_REDUCETASKS_PATH + "reduceTask-" + nodeIp + "-" + jobId + "-" + reduceId;
+        return OpsUtils.ETCD_REDUCETASKS_PATH + "/reduceTasks-" + nodeIp + "-" + jobId + "-" + reduceId;
     }
 
     public static String buildKeyReduceNum(String nodeIp, String jobId, String reduceId) {
-        return OpsUtils.ETCD_REDUCETASKS_PATH + "reduceTask-" + nodeIp + "-" + jobId + "-" + reduceId;
+        return OpsUtils.ETCD_REDUCENUM_PATH + "/reduceNum-" + nodeIp + "-" + jobId + "-" + reduceId;
     }
 
     public static void initLocalDir(String localDir) {

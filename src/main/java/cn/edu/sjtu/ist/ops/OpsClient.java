@@ -39,6 +39,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.ReduceConf;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsConfig;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
@@ -90,6 +91,11 @@ public class OpsClient {
         EtcdService.put(OpsUtils.buildKeyJob(job.getJobId()), gson.toJson(job));
     }
 
+    public void registerReduce(ReduceConf reduce) {
+        EtcdService.put(OpsUtils.buildKeyReduceTask(reduce.getOpsNode().getIp(), reduce.getJobId(), reduce.getTaskId()),
+                gson.toJson(reduce));
+    }
+
     public static void main(String[] args) throws InterruptedException {
         Thread.currentThread().setName("ops-client");
         OpsClient opsClient = new OpsClient();
@@ -99,27 +105,33 @@ public class OpsClient {
         Option help = new Option("help", "print this message");
         int tcArgNum = 5;
         Option taskComplete = OptionBuilder.withArgName("taskcomplete").hasArgs().hasArgs(tcArgNum)
-                .withDescription("Send a TaskComplete message to master").create("tc");
+                .withDescription("Write TaskComplete to ETCD").create("tc");
         int rjArgNum = 3;
         Option registerJob = OptionBuilder.withArgName("registerjob").hasArgs().hasArgs(rjArgNum)
-                .withDescription("Send a RegisterJob message to master").create("rj");
+                .withDescription("Write RegisterJob to ETCD").create("rj");
+        int rrArgNum = 3;
+        Option registerReduce = OptionBuilder.withArgName("registerreduce").hasArgs().hasArgs(rrArgNum)
+                .withDescription("Write RegisterJob to ETCD").create("rr");
 
         Options options = new Options();
         CommandLineParser parser = new BasicParser();
 
         options.addOption(help);
         options.addOption(registerJob);
+        options.addOption(registerReduce);
         options.addOption(taskComplete);
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            String[] rjArgs = { "-rj", "jobid-test", "2", "2" };
-            String[] tcArgs = { "-tc", "taskid-test", "jobid-test", addr.getHostAddress(),
+            String[] rjArgs = { "-rj", "jobid_test", "2", "2" };
+            String[] tcArgs = { "-tc", "taskid_test", "jobid_test", addr.getHostAddress(),
                     "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out",
                     "/Users/admin/Documents/OPS/application_1544151629395_0001/attempt_1544151629395_0001_m_000001_0/file.out.index" };
+            String[] rrArgs = { "-rr", "reduce_test4", "jobid_test", addr.getHostAddress() };
 
             // commandLine = parser.parse(options, rjArgs);
-            commandLine = parser.parse(options, tcArgs);
+            // commandLine = parser.parse(options, tcArgs);
+            commandLine = parser.parse(options, rrArgs);
             // commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {
@@ -146,6 +158,16 @@ public class OpsClient {
                 JobConf job = new JobConf(vals[0], Integer.parseInt(vals[1]), Integer.parseInt(vals[2]),
                         opsClient.getWorkers());
                 opsClient.registerJob(job);
+            } else if (commandLine.hasOption("rr")) {
+                String[] vals = commandLine.getOptionValues("rr");
+                if (vals.length != rrArgNum) {
+                    System.out.println("Required arguments: [TaskId, jobId, nodeIp]");
+                    System.out.println("Wrong arguments: " + Arrays.toString(vals));
+                    return;
+                }
+                ReduceConf reduce = new ReduceConf(vals[0], vals[1], new OpsNode(vals[2]));
+                opsClient.registerReduce(reduce);
+                System.out.println("Register reduce: " + reduce.toString());
             }
 
         } catch (ParseException e) {

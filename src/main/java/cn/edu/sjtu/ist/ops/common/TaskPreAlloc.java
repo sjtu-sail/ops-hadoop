@@ -29,6 +29,7 @@ public class TaskPreAlloc {
     private final Integer numNodes;
     private Map<String, OpsNode> nodesMap = new HashMap<>();
     private Map<String, List<Integer>> taskOrder = new HashMap<>();
+    private Map<String, Integer> taskOrderIndex = new HashMap<>();
 
     public TaskPreAlloc(Integer numTasks, List<OpsNode> nodes) {
         this.numTasks = numTasks;
@@ -39,6 +40,7 @@ public class TaskPreAlloc {
         for (OpsNode node : nodes) {
             this.nodesMap.put(node.getIp(), node);
             this.taskOrder.put(node.getIp(), new ArrayList<>());
+            this.taskOrderIndex.put(node.getIp(), 0);
         }
         Iterator<List<Integer>> iter = this.taskOrder.values().iterator();
         for (Integer i = 0; i < numTasks; i++) {
@@ -51,6 +53,16 @@ public class TaskPreAlloc {
 
     public Map<String, OpsNode> getNodesMap() {
         return this.nodesMap;
+    }
+
+    public Integer distributeReduceNum(String ip) {
+        Integer index = this.taskOrderIndex.get(ip);
+        List<Integer> order = this.taskOrder.get(ip);
+        if (index >= order.size()) {
+            return -1;
+        }
+        this.taskOrderIndex.put(ip, index + 1);
+        return order.get(index);
     }
 
     public List<Integer> getTaskOrder(String ip) {
@@ -75,9 +87,14 @@ public class TaskPreAlloc {
     // System.out.println("hello");
     // for (int i = 0; i < 4; i++) {
     // System.out.println(nodes.size());
-    // nodes.add(new OpsNode("ip-" + i, "hostname-" + i));
+    // nodes.add(new OpsNode("ip-" + i));
     // }
     // TaskPreAlloc preAlloc = new TaskPreAlloc(11, nodes);
     // System.out.println(preAlloc.toString());
+
+    // System.out.println(preAlloc.getReduceNum("ip-1"));
+    // System.out.println(preAlloc.getReduceNum("ip-1"));
+    // System.out.println(preAlloc.getReduceNum("ip-1"));
+    // System.out.println(preAlloc.getReduceNum("ip-1"));
     // }
 }
