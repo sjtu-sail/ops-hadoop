@@ -6,13 +6,15 @@
 **OP**timized **S**huffle is a distributed shuffle management system which focuses on optimizing the shuffle phase of DAG computing frameworks. The name [**OPS**](https://en.wikipedia.org/wiki/Ops) is originated from the ancient Roman religion, she was a fertility deity and earth goddess of Sabine origin. 
 
 - [OPS](#ops)
-    - [System Overview](#system-overview)
-        - [Architecture](#architecture)
-        - [Internal View](#internal-view)
-        - [LifeCycle](#lifecycle)
-        - [Compatibility](#compatibility)
-    - [Build](#build)
-    - [License](#license)
+  - [System Overview](#system-overview)
+    - [Architecture](#architecture)
+    - [Internal View](#internal-view)
+    - [LifeCycle](#lifecycle)
+    - [ETCD File Structure](#etcd-file-structure)
+    - [Compatibility](#compatibility)
+  - [Build](#build)
+  - [Run](#run)
+  - [License](#license)
 
 ## System Overview
 
@@ -30,6 +32,22 @@
 
 <p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-LifeCycle.png" width="80%"/></p>
 <p align="center">Figure 3:  Lifecyle of OPS</p>
+
+### ETCD File Structure
+
+- ops/
+  - jobs/
+    - job-\${jobId}: JobConf
+  - shuffle/
+    - reduceNum/
+      - reduceNum-\${nodeIp}-\${jobId}-\${reduceId}: num
+    - mapCompleted/
+      - mapCompleted-\${nodeIp}-\${jobId}-\${mapId}: MapConf
+    - shuffleCompleted/
+      - shuffleCompleted-\${dstNodeIp}-\${jobId}-\${num}-\${mapId}: path
+  - tasks/
+    - reduceTasks/
+      - reduceTask-\${nodeIp}-\${jobId}-\${reduceId}: ReduceConf
 
 ### Compatibility
 
