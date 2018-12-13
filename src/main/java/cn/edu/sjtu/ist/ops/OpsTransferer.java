@@ -31,6 +31,7 @@ import cn.edu.sjtu.ist.ops.common.IndexReader;
 import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
@@ -81,10 +82,16 @@ class OpsTransferer extends Thread {
         ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
         OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
-        StreamObserver<Chunk> requestObserver = asyncStub.transfer(new StreamObserver<StatusMessage>() {
-            @Override
-            public void onNext(StatusMessage msg) {
 
+        String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
+                shuffle.getNum());
+        StreamObserver<Chunk> requestObserver = asyncStub.transfer(new StreamObserver<ParentPath>() {
+            String parentPath = "";
+
+            @Override
+            public void onNext(ParentPath path) {
+                logger.debug("ParentPath: " + path.getPath());
+                parentPath = path.getPath();
             }
 
             @Override
@@ -94,7 +101,8 @@ class OpsTransferer extends Thread {
 
             @Override
             public void onCompleted() {
-                shuffleHandler.addPendingCompletedShuffle(shuffle);
+                shuffleHandler.addPendingCompletedShuffle(
+                        new ShuffleCompletedConf(shuffle, new File(parentPath, path).toString()));
                 channel.shutdown();
             }
         });
@@ -105,9 +113,6 @@ class OpsTransferer extends Thread {
             long partLength = record.getPartLength();
 
             logger.debug("Transfer indexRecord: " + record.toString());
-
-            String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
-                    shuffle.getNum());
 
             BufferedInputStream input = new BufferedInputStream(
                     new FileInputStream(new File(shuffle.getTask().getPath())));

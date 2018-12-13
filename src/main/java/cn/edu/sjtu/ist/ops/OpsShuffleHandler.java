@@ -37,6 +37,7 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
@@ -58,7 +59,7 @@ public class OpsShuffleHandler extends Thread {
     private final OpsWatcher mapCompletedWatcher;
     private volatile boolean stopped = false;
     private Set<ShuffleConf> pendingShuffles = new HashSet<>();
-    private Set<ShuffleConf> pendingCompletedShuffles = new HashSet<>();
+    private Set<ShuffleCompletedConf> pendingCompletedShuffles = new HashSet<>();
     private HashMap<String, JobConf> jobs = new HashMap<>();
     private final Random random = new Random();
     private Gson gson = new Gson();
@@ -99,9 +100,9 @@ public class OpsShuffleHandler extends Thread {
             this.mapCompletedWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
-                ShuffleConf shuffle = null;
-                shuffle = this.getCompletedShuffle();
-                this.shuffleCompleted(shuffle);
+                ShuffleCompletedConf shuffleC = null;
+                shuffleC = this.getCompletedShuffle();
+                this.shuffleCompleted(shuffleC);
             }
         } catch (Exception e) {
             // TODO: handle exception
@@ -150,14 +151,14 @@ public class OpsShuffleHandler extends Thread {
         return shuffle;
     }
 
-    public synchronized ShuffleConf getCompletedShuffle() throws InterruptedException {
+    public synchronized ShuffleCompletedConf getCompletedShuffle() throws InterruptedException {
         while (this.pendingCompletedShuffles.isEmpty()) {
             wait();
         }
 
-        ShuffleConf task = null;
+        ShuffleCompletedConf task = null;
 
-        Iterator<ShuffleConf> iter = this.pendingCompletedShuffles.iterator();
+        Iterator<ShuffleCompletedConf> iter = this.pendingCompletedShuffles.iterator();
         int numToPick = random.nextInt(this.pendingCompletedShuffles.size());
         for (int i = 0; i <= numToPick; ++i) {
             task = iter.next();
@@ -179,21 +180,20 @@ public class OpsShuffleHandler extends Thread {
         notifyAll();
     }
 
-    public synchronized void addPendingCompletedShuffle(ShuffleConf shuffle) {
-        pendingCompletedShuffles.add(shuffle);
-        logger.debug("Add pendingCompletedShuffle: " + shuffle.getDstNode().getIp() + "-" + shuffle.getNum() + "-"
-                + shuffle.getTask().getTaskId());
+    public synchronized void addPendingCompletedShuffle(ShuffleCompletedConf shuffleC) {
+        pendingCompletedShuffles.add(shuffleC);
+        logger.debug("Add pendingCompletedShuffle: " + shuffleC.toString());
         notifyAll();
     }
 
-    public void shuffleCompleted(ShuffleConf shuffle) {
-        EtcdService.put(OpsUtils.buildKeyShuffleCompleted(shuffle.getDstNode().getIp(), shuffle.getTask().getJobId(),
-                shuffle.getNum().toString(), shuffle.getTask().getTaskId()), gson.toJson(shuffle));
+    public void shuffleCompleted(ShuffleCompletedConf shuffleC) {
+        EtcdService.put(OpsUtils.buildKeyShuffleCompleted(shuffleC.getDstNode().getIp(), shuffleC.getTask().getJobId(),
+                shuffleC.getNum().toString(), shuffleC.getTask().getTaskId()), shuffleC.getPath());
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
         @Override
-        public StreamObserver<Chunk> transfer(StreamObserver<StatusMessage> responseObserver) {
+        public StreamObserver<Chunk> transfer(StreamObserver<ParentPath> responseObserver) {
             return new StreamObserver<Chunk>() {
                 @Override
                 public void onNext(Chunk chunk) {
@@ -227,6 +227,8 @@ public class OpsShuffleHandler extends Thread {
 
                 @Override
                 public void onCompleted() {
+                    ParentPath path = ParentPath.newBuilder().setPath(opsConf.getDir()).build();
+                    responseObserver.onNext(path);
                     responseObserver.onCompleted();
                 }
             };

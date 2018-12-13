@@ -8,7 +8,7 @@ option objc_class_prefix = "OPS";
 package opsinternal;
 
 service OpsInternal {
-    rpc transfer (stream Chunk) returns (stream StatusMessage) {}
+    rpc transfer (stream Chunk) returns (stream ParentPath) {}
 }
 
 message Chunk {
@@ -17,6 +17,6 @@ message Chunk {
     bytes content = 3;
 }
 
-message StatusMessage {
-    int32 status = 1;
+message ParentPath {
+    string path = 1;
 }
