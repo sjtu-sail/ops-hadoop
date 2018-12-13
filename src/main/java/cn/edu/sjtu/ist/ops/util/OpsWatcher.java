@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import cn.edu.sjtu.ist.ops.OpsScheduler;
 import cn.edu.sjtu.ist.ops.OpsShuffleHandler;
 
+import java.util.List;
+
 public class OpsWatcher extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(WatcherThread.class);
@@ -71,28 +73,31 @@ public class OpsWatcher extends Thread {
         while (true) {
             try {
                 WatchResponse response = watcher.listen();
-                WatchEvent event = response.getEvents().get(0);
-                switch (event.getEventType()) {
-                case PUT:
-                    logger.debug("put: " + event.getKeyValue().getKey().toStringUtf8());
-                    if (this.scheduler != null) {
-                        this.scheduler.watcherPut(key, event.getKeyValue().getValue().toStringUtf8());
-                    } else {
-                        this.shuffleHandler.watcherPut(key, event.getKeyValue().getValue().toStringUtf8());
-                    }
-                    break;
-                case DELETE:
-                    if (this.scheduler != null) {
+                List<WatchEvent> events = response.getEvents();
 
-                    } else {
+                events.forEach(event -> {
+                    switch (event.getEventType()) {
+                        case PUT:
+                            logger.debug("put: " + event.getKeyValue().getKey().toStringUtf8());
+                            if (this.scheduler != null) {
+                                this.scheduler.watcherPut(key, event.getKeyValue().getValue().toStringUtf8());
+                            } else {
+                                this.shuffleHandler.watcherPut(key, event.getKeyValue().getValue().toStringUtf8());
+                            }
+                            break;
+                        case DELETE:
+                            if (this.scheduler != null) {
 
+                            } else {
+
+                            }
+                            break;
+                        case UNRECOGNIZED:
+                            break;
+                        default:
+                            break;
                     }
-                    break;
-                case UNRECOGNIZED:
-                    break;
-                default:
-                    break;
-                }
+                });
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
