@@ -16,6 +16,8 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
+import com.google.gson.Gson;
+
 public class HadoopPath {
     private final String path;
     private final long compressedLength;
@@ -37,6 +39,11 @@ public class HadoopPath {
 
     public long getDecompressedLength() {
         return this.decompressedLength;
+    }
+
+    @Override
+    public String toString() {
+        return new Gson().toJson(this);
     }
 
 }
