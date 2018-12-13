@@ -27,6 +27,7 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cn.edu.sjtu.ist.ops.common.HadoopPath;
 import cn.edu.sjtu.ist.ops.common.IndexReader;
 import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.JobConf;
@@ -78,6 +79,7 @@ class OpsTransferer extends Thread {
                 + shuffle.getDstNode().getIp());
 
         IndexReader indexReader = new IndexReader(shuffle.getTask().getIndexPath().toString());
+        IndexRecord record = indexReader.getIndex(shuffle.getNum());
 
         ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
@@ -101,14 +103,14 @@ class OpsTransferer extends Thread {
 
             @Override
             public void onCompleted() {
-                shuffleHandler.addPendingCompletedShuffle(
-                        new ShuffleCompletedConf(shuffle, new File(parentPath, path).toString()));
+                HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
+                        record.getRawLength());
+                shuffleHandler.addPendingCompletedShuffle(new ShuffleCompletedConf(shuffle, hadoopPath));
                 channel.shutdown();
             }
         });
 
         try {
-            IndexRecord record = indexReader.getIndex(shuffle.getNum());
             long startOffset = record.getStartOffset();
             long partLength = record.getPartLength();
 

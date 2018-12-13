@@ -16,28 +16,27 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
-import com.google.gson.Gson;
+public class HadoopPath {
+    private final String path;
+    private final long compressedLength;
+    private final long decompressedLength;
 
-public class ShuffleCompletedConf extends ShuffleConf {
-
-    private final HadoopPath hadoopPath;
-
-    public ShuffleCompletedConf(MapConf task, OpsNode dstNode, Integer num, HadoopPath hadoopPath) {
-        super(task, dstNode, num);
-        this.hadoopPath = hadoopPath;
+    public HadoopPath(String path, long partLength, long rawLength) {
+        this.path = path;
+        this.compressedLength = partLength;
+        this.decompressedLength = rawLength;
     }
 
-    public ShuffleCompletedConf(ShuffleConf shuffle, HadoopPath hadoopPath) {
-        super(shuffle.getTask(), shuffle.getDstNode(), shuffle.getNum());
-        this.hadoopPath = hadoopPath;
+    public String getPath() {
+        return this.path;
     }
 
-    public HadoopPath getHadoopPath() {
-        return this.hadoopPath;
+    public long getCompressedLength() {
+        return this.compressedLength;
     }
 
-    @Override
-    public String toString() {
-        return new Gson().toJson(this);
+    public long getDecompressedLength() {
+        return this.decompressedLength;
     }
+
 }

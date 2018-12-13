@@ -187,8 +187,10 @@ public class OpsShuffleHandler extends Thread {
     }
 
     public void shuffleCompleted(ShuffleCompletedConf shuffleC) {
-        EtcdService.put(OpsUtils.buildKeyShuffleCompleted(shuffleC.getDstNode().getIp(), shuffleC.getTask().getJobId(),
-                shuffleC.getNum().toString(), shuffleC.getTask().getTaskId()), shuffleC.getPath());
+        EtcdService.put(
+                OpsUtils.buildKeyShuffleCompleted(shuffleC.getDstNode().getIp(), shuffleC.getTask().getJobId(),
+                        shuffleC.getNum().toString(), shuffleC.getTask().getTaskId()),
+                gson.toJson(shuffleC.getHadoopPath()));
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
