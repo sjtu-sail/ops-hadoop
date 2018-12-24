@@ -207,11 +207,10 @@ public class OpsShuffleHandler extends Thread {
                             if (file.exists()) {
                                 FileUtils.forceDelete(file);
                                 logger.debug("Delete the namesake file: " + file.toString());
-                            } else {
-                                FileUtils.forceMkdirParent(file);
-                                file.createNewFile();
-                                logger.debug("mkdir & create file for shuffle data: " + file.toString());
                             }
+                            FileUtils.forceMkdirParent(file);
+                            file.createNewFile();
+                            logger.debug("mkdir & create file for shuffle data: " + file.toString());
                         }
                         ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
                         byteSink.write(chunk.getContent().toByteArray());
