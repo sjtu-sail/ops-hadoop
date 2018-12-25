@@ -72,8 +72,7 @@ public class EtcdService {
     public static List<KeyValue> getKVs(String key) {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
-            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream().skip(1)
-                    .collect(Collectors.toList());
+            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs();
         } catch (Exception e) {
             e.printStackTrace();
         }

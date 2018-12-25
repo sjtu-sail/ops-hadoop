@@ -131,8 +131,8 @@ public class OpsClient {
 
             // commandLine = parser.parse(options, rjArgs);
             // commandLine = parser.parse(options, tcArgs);
-            commandLine = parser.parse(options, rrArgs);
-            // commandLine = parser.parse(options, args);
+            // commandLine = parser.parse(options, rrArgs);
+            commandLine = parser.parse(options, args);
 
             if (commandLine.hasOption("help")) {
                 HelpFormatter formatter = new HelpFormatter();
