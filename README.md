@@ -38,6 +38,8 @@
 - ops/
   - jobs/
     - job-\${jobId}: JobConf
+  - taskAlloc/
+    - taskAlloc-\${jobId}: TaskAlloc
   - shuffle/
     - reduceNum/
       - reduceNum-\${nodeIp}-\${jobId}-\${reduceId}: num
