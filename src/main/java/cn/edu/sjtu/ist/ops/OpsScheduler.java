@@ -34,6 +34,7 @@ import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.OpsTask;
 import cn.edu.sjtu.ist.ops.common.ReduceConf;
+import cn.edu.sjtu.ist.ops.common.TaskAlloc;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
@@ -84,6 +85,9 @@ public class OpsScheduler extends Thread {
                 OpsTask opsTask = null;
                 opsTask = this.getPendingOpsTask();
                 switch (opsTask.getType()) {
+                case SCHEDULE:
+                    scheduleJob(opsTask.getPendingJob());
+                    break;
                 case ONSHUFFLE:
                     onShuffle(opsTask.getPendingMap());
                     break;
@@ -108,12 +112,13 @@ public class OpsScheduler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
+            this.addPendingOpsTask(new OpsTask(job));
             logger.info("Add new job: " + job.getJobId());
         } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
             ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
             JobConf job = this.jobs.get(reduce.getJobId());
             Integer reduceNum = job.distributeReduceNum(reduce.getOpsNode().getIp());
-            this.jobs.put(reduce.getJobId(), job);
+            this.jobs.put(reduce.getJobId(), job); // redundant?
             this.addPendingOpsTask(new OpsTask(reduce, reduceNum));
             logger.info("Register new reduce task: " + reduce.toString());
         }
@@ -148,6 +153,36 @@ public class OpsScheduler extends Thread {
                 logger.debug("Setup gRPC:" + worker.getIp() + ", " + opsConf.getPortWorkerGRPC());
             }
         }
+    }
+
+    public void scheduleJob(JobConf job) {
+        logger.info("Schedule new job: " + job.getJobId());
+        // TODO: Schedule jobs here.
+
+        // naive strategy
+        TaskAlloc taskAlloc = new TaskAlloc(job);
+        int mapPerNode = job.getNumMap() / job.getWorkers().size();
+        int mapRemainder = job.getNumMap() % job.getWorkers().size();
+        // map
+        for (OpsNode worker : job.getWorkers()) {
+            logger.info("addMapPreAlloc: [" + worker.getIp() + ", " + mapPerNode + "]");
+            taskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
+        }
+        logger.info("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
+        taskAlloc.addMapPreAlloc(job.getWorkers().get(0).getIp(), mapRemainder);
+        // reduce
+        int reducePerNode = job.getNumReduce() / job.getWorkers().size();
+        int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
+        for (OpsNode worker : job.getWorkers()) {
+            logger.info("addReducePreAlloc: [" + worker.getIp() + ", " + reducePerNode + "]");
+            taskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
+        }
+        logger.info("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
+        taskAlloc.addReducePreAlloc(job.getWorkers().get(0).getIp(), reduceRemainder);
+
+        // put etcd
+        logger.debug("Put TaskAlloc: " + OpsUtils.buildKeyTaskAlloc(job.getJobId()) + "\n TaskAlloc: " + gson.toJson(taskAlloc));
+        EtcdService.put(OpsUtils.buildKeyTaskAlloc(job.getJobId()), gson.toJson(taskAlloc));
     }
 
     public void onShuffle(MapConf task) {

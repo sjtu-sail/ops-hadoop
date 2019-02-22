@@ -20,13 +20,19 @@ import com.google.gson.Gson;
 
 public class OpsTask {
     public static enum Type {
-        ONSHUFFLE, REGISTER_REDUCE
+        SCHEDULE, ONSHUFFLE, REGISTER_REDUCE
     }
 
     private Type type;
+    private JobConf pendingJob;
     private MapConf pendingMap;
     private ReduceConf pendingReduce;
     private Integer reduceNum;
+
+    public OpsTask(JobConf job) {
+        this.type = Type.SCHEDULE;
+        this.pendingJob = pendingJob;
+    }
 
     public OpsTask(MapConf pendingTask) {
         this.type = Type.ONSHUFFLE;
@@ -41,6 +47,10 @@ public class OpsTask {
 
     public Type getType() {
         return this.type;
+    }
+
+    public JobConf getPendingJob() {
+        return this.pendingJob;
     }
 
     public MapConf getPendingMap() {

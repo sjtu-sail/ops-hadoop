@@ -24,12 +24,14 @@ public class JobConf {
     private final String jobId;
     private final int numMap;
     private final int numReduce;
-    private final TaskPreAlloc reducePreAlloc;
+    private final List<OpsNode> workers;
+    private final TaskPreAlloc reducePreAlloc; // Will be replaced.
 
     public JobConf(String id, int map, int reduce, List<OpsNode> nodes) {
         this.jobId = id;
         this.numMap = map;
         this.numReduce = reduce;
+        this.workers = nodes;
         this.reducePreAlloc = new TaskPreAlloc(numReduce, nodes);
     }
 
@@ -51,6 +53,10 @@ public class JobConf {
 
     public int getNumReduce() {
         return this.numReduce;
+    }
+
+    public List<OpsNode> getWorkers() {
+        return workers;
     }
 
     @Override

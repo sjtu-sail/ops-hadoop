@@ -19,13 +19,12 @@ package cn.edu.sjtu.ist.ops.util;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.apache.commons.io.FileUtils;
 
 public class OpsUtils {
     public static String ETCD_JOBS_PATH = "ops/jobs";
+    public static String ETCD_TASKALLOC_PATH = "ops/taskAlloc";
     public static String ETCD_NODES_PATH = "ops/nodes";
     public static String ETCD_MAPCOMPLETED_PATH = "ops/shuffle/mapCompleted";
     public static String ETCD_SHUFFLECOMPLETED_PATH = "ops/shuffle/shuffleCompleted";
@@ -34,6 +33,10 @@ public class OpsUtils {
 
     public static String buildKeyJob(String jobId) {
         return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId;
+    }
+
+    public static String buildKeyTaskAlloc(String jobId) {
+        return OpsUtils.ETCD_TASKALLOC_PATH + "/taskAlloc-" + jobId;
     }
 
     public static String buildKeyMapCompleted(String nodeIp, String jobId, String mapId) {
