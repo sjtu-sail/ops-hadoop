@@ -198,6 +198,10 @@ public class OpsScheduler extends Thread {
 
     public synchronized void addPendingOpsTask(OpsTask opsTask) {
         switch (opsTask.getType()) {
+        case SCHEDULE:
+            this.pendingOpsTasks.add(opsTask);
+            notifyAll();
+            break;
         case ONSHUFFLE:
             // MapConf task = opsTask.getPendingMap();
             // job.mapTaskCompleted(task);
