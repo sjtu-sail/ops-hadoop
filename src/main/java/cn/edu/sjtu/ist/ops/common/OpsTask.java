@@ -31,7 +31,7 @@ public class OpsTask {
 
     public OpsTask(JobConf job) {
         this.type = Type.SCHEDULE;
-        this.pendingJob = pendingJob;
+        this.pendingJob = job;
     }
 
     public OpsTask(MapConf pendingTask) {
