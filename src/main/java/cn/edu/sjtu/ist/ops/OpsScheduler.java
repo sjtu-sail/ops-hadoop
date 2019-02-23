@@ -169,7 +169,10 @@ public class OpsScheduler extends Thread {
             taskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
         }
         logger.info("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
-        taskAlloc.addMapPreAlloc(job.getWorkers().get(0).getIp(), mapRemainder);
+        if(mapRemainder != 0) {
+            String host = job.getWorkers().get(0).getIp();
+            taskAlloc.addMapPreAlloc(host, taskAlloc.getMapPreAlloc(host) + mapRemainder);
+        }
         // reduce
         int reducePerNode = job.getNumReduce() / job.getWorkers().size();
         int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
@@ -178,7 +181,10 @@ public class OpsScheduler extends Thread {
             taskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
         }
         logger.info("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
-        taskAlloc.addReducePreAlloc(job.getWorkers().get(0).getIp(), reduceRemainder);
+        if(reduceRemainder != 0) {
+            String host = job.getWorkers().get(0).getIp();
+            taskAlloc.addReducePreAlloc(host, taskAlloc.getReducePreAlloc(host) + reduceRemainder);
+        }
 
         // put etcd
         logger.debug("Put TaskAlloc: " + OpsUtils.buildKeyTaskAlloc(job.getJobId()) + "\n TaskAlloc: " + gson.toJson(taskAlloc));
