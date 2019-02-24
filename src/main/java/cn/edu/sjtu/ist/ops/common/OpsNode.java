@@ -16,13 +16,9 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
-import java.io.Serializable;
-
 import com.google.gson.Gson;
 
-public class OpsNode implements Serializable {
-
-    private static final long serialVersionUID = -8745866775809014881L;
+public class OpsNode {
 
     private final String ip;
 

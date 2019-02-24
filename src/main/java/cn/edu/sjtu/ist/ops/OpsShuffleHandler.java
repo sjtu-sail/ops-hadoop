@@ -39,6 +39,7 @@ import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
+import cn.edu.sjtu.ist.ops.common.TaskAlloc;
 import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
@@ -57,10 +58,13 @@ public class OpsShuffleHandler extends Thread {
     private final OpsConf opsConf;
     private final OpsWatcher jobWatcher;
     private final OpsWatcher mapCompletedWatcher;
+    private final OpsWatcher taskAllocWatcher;
     private volatile boolean stopped = false;
-    private Set<ShuffleConf> pendingShuffles = new HashSet<>();
-    private Set<ShuffleCompletedConf> pendingCompletedShuffles = new HashSet<>();
-    private HashMap<String, JobConf> jobs = new HashMap<>();
+    private final Set<ShuffleConf> pendingShuffles = new HashSet<>();
+    private final Set<ShuffleCompletedConf> pendingCompletedShuffles = new HashSet<>();
+    private final HashMap<String, JobConf> jobs = new HashMap<>();
+    /** Maps from a job to the taskAlloc */
+    private final HashMap<String, TaskAlloc> taskAllocMapping = new HashMap<String, TaskAlloc>();
     private final Random random = new Random();
     private Gson gson = new Gson();
 
@@ -76,6 +80,7 @@ public class OpsShuffleHandler extends Thread {
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
         this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH,
                 "/mapCompleted-" + host.getIp() + "-");
+        this.taskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_TASKALLOC_PATH);
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
                 .usePlaintext().build();
@@ -98,6 +103,7 @@ public class OpsShuffleHandler extends Thread {
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
             this.jobWatcher.start();
             this.mapCompletedWatcher.start();
+            this.taskAllocWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
                 ShuffleCompletedConf shuffleC = null;
@@ -116,6 +122,11 @@ public class OpsShuffleHandler extends Thread {
             this.jobs.put(job.getJobId(), job);
             logger.info("Add new job: " + job.getJobId());
 
+        } else if(key == OpsUtils.ETCD_TASKALLOC_PATH) {
+            TaskAlloc taskAlloc = gson.fromJson(value, TaskAlloc.class);
+            this.taskAllocMapping.put(taskAlloc.getJob().getJobId(), taskAlloc);
+            logger.info("Add taskAlloc: " + taskAlloc.toString());
+
         } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
             MapConf map = gson.fromJson(value, MapConf.class);
             if (!jobs.containsKey(map.getJobId())) {
@@ -123,9 +134,9 @@ public class OpsShuffleHandler extends Thread {
                 return;
             }
             JobConf job = jobs.get(map.getJobId());
-            TaskPreAlloc preAlloc = job.getReducePreAlloc();
-            for (OpsNode node : preAlloc.getNodesMap().values()) {
-                for (Integer num : preAlloc.getTaskOrder(node.getIp())) {
+            TaskAlloc taskAlloc = this.taskAllocMapping.get(map.getJobId());
+            for (OpsNode node : job.getWorkers()) {
+                for (Integer num : taskAlloc.getReducePreAllocOrder(node.getIp())) {
                     ShuffleConf shuffle = new ShuffleConf(map, node, num);
                     addPendingShuffles(shuffle);
                 }

@@ -25,22 +25,12 @@ public class JobConf {
     private final int numMap;
     private final int numReduce;
     private final List<OpsNode> workers;
-    private final TaskPreAlloc reducePreAlloc; // Will be replaced.
 
     public JobConf(String id, int map, int reduce, List<OpsNode> nodes) {
         this.jobId = id;
         this.numMap = map;
         this.numReduce = reduce;
         this.workers = nodes;
-        this.reducePreAlloc = new TaskPreAlloc(numReduce, nodes);
-    }
-
-    public TaskPreAlloc getReducePreAlloc() {
-        return this.reducePreAlloc;
-    }
-
-    public Integer distributeReduceNum(String ip) {
-        return this.reducePreAlloc.distributeReduceNum(ip);
     }
 
     public String getJobId() {

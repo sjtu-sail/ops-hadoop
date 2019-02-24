@@ -18,6 +18,7 @@ package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
 
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +29,10 @@ public class TaskAlloc {
     private final Map<String, Integer> mapPreAlloc = new HashMap<String, Integer>();
     /** Maps from a host to the reduce slots on this node **/
     private final Map<String, Integer> reducePreAlloc = new HashMap<String, Integer>();
+    /** Maps from a host to the number of reduce slots on this node **/
+    private final Map<String, LinkedList<Integer>> reducePreAllocOrder = 
+            new HashMap<String, LinkedList<Integer>>();
+    private int reduceNum = -1;
 
     public TaskAlloc(JobConf job) {
         this.job = job;
@@ -38,9 +43,18 @@ public class TaskAlloc {
     }
 
     public void addReducePreAlloc(String host, int num) {
+        if(this.reducePreAlloc.containsKey(host)) {
+            return;
+        }
         this.reducePreAlloc.put(host, num);
+        LinkedList<Integer> list = new LinkedList<>();
+        for(int i = 0; i < num; i++) {
+            reduceNum++;
+            list.add(reduceNum);
+        }
+        this.reducePreAllocOrder.put(host, list);
     }
-    
+
     public JobConf getJob() {
         return job;
     }
@@ -51,6 +65,10 @@ public class TaskAlloc {
 
     public int getReducePreAlloc(String host) {
         return this.reducePreAlloc.get(host);
+    }
+
+    public LinkedList<Integer> getReducePreAllocOrder(String host) {
+        return reducePreAllocOrder.get(host);
     }
 
     @Override

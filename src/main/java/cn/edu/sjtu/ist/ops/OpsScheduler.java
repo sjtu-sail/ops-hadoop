@@ -47,15 +47,19 @@ public class OpsScheduler extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(OpsScheduler.class);
 
     private final Random random = new Random();
-    private Map<String, ManagedChannel> workerChannels;
-    private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs;
+    private Map<String, ManagedChannel> workerChannels = new HashMap<>();
+    private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs = new HashMap<>();
+    /** Maps from a job to the taskAlloc */
+    private Map<String, TaskAlloc> taskAllocMapping = new HashMap<String, TaskAlloc>();
+    private Map<String, Map<OpsNode, Integer>> reduceCounterMapping 
+            = new HashMap<String, Map<OpsNode, Integer>>();
     private OpsWatcher jobWatcher;
     private OpsWatcher reduceWatcher;
     private OpsConf opsConf;
     private WatcherThread watcherThread;
-    private HashMap<String, JobConf> jobs;
+    private HashMap<String, JobConf> jobs = new HashMap<>();
     private volatile boolean stopped;
-    private Set<OpsTask> pendingOpsTasks;
+    private Set<OpsTask> pendingOpsTasks = new HashSet<>();
     private Gson gson = new Gson();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
@@ -64,10 +68,6 @@ public class OpsScheduler extends Thread {
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
-        this.jobs = new HashMap<>();
-        this.pendingOpsTasks = new HashSet<>();
-        this.workerChannels = new HashMap<>();
-        this.workerStubs = new HashMap<>();
 
         setupWorkersGRPC();
 
@@ -116,9 +116,7 @@ public class OpsScheduler extends Thread {
             logger.info("Add new job: " + job.getJobId());
         } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
             ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
-            JobConf job = this.jobs.get(reduce.getJobId());
-            Integer reduceNum = job.distributeReduceNum(reduce.getOpsNode().getIp());
-            this.jobs.put(reduce.getJobId(), job); // redundant?
+            int reduceNum = this.distributeReduceNum(reduce.getJobId(), reduce.getOpsNode());
             this.addPendingOpsTask(new OpsTask(reduce, reduceNum));
             logger.info("Register new reduce task: " + reduce.toString());
         }
@@ -155,6 +153,19 @@ public class OpsScheduler extends Thread {
         }
     }
 
+    private int distributeReduceNum(String jobId, OpsNode host) {
+        Map<OpsNode, Integer> reduceCounter = this.reduceCounterMapping.get(jobId);
+        if(!reduceCounter.containsKey(host)) {
+            reduceCounter.put(host, 0);
+        }
+        int count = reduceCounter.get(host);
+        reduceCounter.put(host, count++);
+        int reduceNum = this.taskAllocMapping.get(jobId).getReducePreAllocOrder(host.getIp()).get(count - 1);
+        logger.debug("distributeReduceNum: Job: " + jobId + "host: " + host.getIp() 
+                + ", count: " + count + ", reduceNum: " + reduceNum);
+        return reduceNum;
+    }
+
     public void scheduleJob(JobConf job) {
         logger.info("Schedule new job: " + job.getJobId());
         // TODO: Schedule jobs here.
@@ -186,8 +197,11 @@ public class OpsScheduler extends Thread {
             taskAlloc.addReducePreAlloc(host, taskAlloc.getReducePreAlloc(host) + reduceRemainder);
         }
 
+        // save to scheduler
+        logger.debug("Put taskAllocMapping & put etcd Job: " 
+                + job.getJobId() + " TaskAlloc: " + gson.toJson(taskAlloc));
+        this.taskAllocMapping.put(job.getJobId(), taskAlloc);
         // put etcd
-        logger.debug("Put TaskAlloc: " + OpsUtils.buildKeyTaskAlloc(job.getJobId()) + "\n TaskAlloc: " + gson.toJson(taskAlloc));
         EtcdService.put(OpsUtils.buildKeyTaskAlloc(job.getJobId()), gson.toJson(taskAlloc));
     }
 

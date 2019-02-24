@@ -30,11 +30,9 @@ import org.slf4j.LoggerFactory;
 import cn.edu.sjtu.ist.ops.common.HadoopPath;
 import cn.edu.sjtu.ist.ops.common.IndexReader;
 import cn.edu.sjtu.ist.ops.common.IndexRecord;
-import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
-import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -72,8 +70,6 @@ class OpsTransferer extends Thread {
     }
 
     private void transfer(ShuffleConf shuffle) throws IllegalArgumentException {
-        JobConf job = this.shuffleHandler.getJob(shuffle.getTask().getJobId());
-        TaskPreAlloc preAlloc = job.getReducePreAlloc();
 
         logger.info("getPendingShuffle: task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
