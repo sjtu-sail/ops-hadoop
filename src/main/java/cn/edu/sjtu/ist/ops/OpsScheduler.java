@@ -161,8 +161,8 @@ public class OpsScheduler extends Thread {
         if(!reduceCounter.containsKey(host)) {
             reduceCounter.put(host, 0);
         }
-        int count = reduceCounter.get(host);
-        reduceCounter.put(host, count++);
+        int count = reduceCounter.get(host) + 1;
+        reduceCounter.put(host, count);
         int reduceNum = this.taskAllocMapping.get(jobId).getReducePreAllocOrder(host).get(count - 1);
         logger.debug("distributeReduceNum: Job: " + jobId + ", host: " + host 
                 + ", count: " + count + ", reduceNum: " + reduceNum);
