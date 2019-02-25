@@ -154,6 +154,9 @@ public class OpsScheduler extends Thread {
     }
 
     private int distributeReduceNum(String jobId, OpsNode host) {
+        if(!reduceCounterMapping.containsKey(jobId)) {
+            this.reduceCounterMapping.put(jobId, new HashMap<OpsNode, Integer>());
+        }
         Map<OpsNode, Integer> reduceCounter = this.reduceCounterMapping.get(jobId);
         if(!reduceCounter.containsKey(host)) {
             reduceCounter.put(host, 0);
