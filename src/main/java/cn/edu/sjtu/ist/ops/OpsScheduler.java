@@ -178,27 +178,26 @@ public class OpsScheduler extends Thread {
         int mapPerNode = job.getNumMap() / job.getWorkers().size();
         int mapRemainder = job.getNumMap() % job.getWorkers().size();
         // map
-        for (OpsNode worker : job.getWorkers()) {
+        for (int i = 1; i < job.getWorkers().size(); i++) {
+            OpsNode worker = job.getWorkers().get(i);
             logger.info("addMapPreAlloc: [" + worker.getIp() + ", " + mapPerNode + "]");
             taskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
         }
         logger.info("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
-        if(mapRemainder != 0) {
-            String host = job.getWorkers().get(0).getIp();
-            taskAlloc.addMapPreAlloc(host, taskAlloc.getMapPreAlloc(host) + mapRemainder);
-        }
+        String host = job.getWorkers().get(0).getIp();
+        taskAlloc.addMapPreAlloc(host, taskAlloc.getMapPreAlloc(host) + mapRemainder);
+
         // reduce
         int reducePerNode = job.getNumReduce() / job.getWorkers().size();
         int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
-        for (OpsNode worker : job.getWorkers()) {
+        for (int i = 1; i < job.getWorkers().size(); i++) {
+            OpsNode worker = job.getWorkers().get(i);
             logger.info("addReducePreAlloc: [" + worker.getIp() + ", " + reducePerNode + "]");
             taskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
         }
         logger.info("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
-        if(reduceRemainder != 0) {
-            String host = job.getWorkers().get(0).getIp();
-            taskAlloc.addReducePreAlloc(host, taskAlloc.getReducePreAlloc(host) + reduceRemainder);
-        }
+        host = job.getWorkers().get(0).getIp();
+        taskAlloc.addReducePreAlloc(host, taskAlloc.getReducePreAlloc(host) + reduceRemainder);
 
         // save to scheduler
         logger.debug("Put taskAllocMapping & put etcd Job: " 
