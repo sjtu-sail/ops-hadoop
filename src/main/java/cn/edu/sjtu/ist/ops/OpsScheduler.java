@@ -51,8 +51,8 @@ public class OpsScheduler extends Thread {
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs = new HashMap<>();
     /** Maps from a job to the taskAlloc */
     private Map<String, TaskAlloc> taskAllocMapping = new HashMap<String, TaskAlloc>();
-    private Map<String, Map<OpsNode, Integer>> reduceCounterMapping 
-            = new HashMap<String, Map<OpsNode, Integer>>();
+    private Map<String, Map<String, Integer>> reduceCounterMapping 
+            = new HashMap<String, Map<String, Integer>>();
     private OpsWatcher jobWatcher;
     private OpsWatcher reduceWatcher;
     private OpsConf opsConf;
@@ -116,7 +116,7 @@ public class OpsScheduler extends Thread {
             logger.info("Add new job: " + job.getJobId());
         } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
             ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
-            int reduceNum = this.distributeReduceNum(reduce.getJobId(), reduce.getOpsNode());
+            int reduceNum = this.distributeReduceNum(reduce.getJobId(), reduce.getOpsNode().getIp());
             this.addPendingOpsTask(new OpsTask(reduce, reduceNum));
             logger.info("Register new reduce task: " + reduce.toString());
         }
@@ -153,18 +153,18 @@ public class OpsScheduler extends Thread {
         }
     }
 
-    private int distributeReduceNum(String jobId, OpsNode host) {
+    private int distributeReduceNum(String jobId, String host) {
         if(!reduceCounterMapping.containsKey(jobId)) {
-            this.reduceCounterMapping.put(jobId, new HashMap<OpsNode, Integer>());
+            this.reduceCounterMapping.put(jobId, new HashMap<String, Integer>());
         }
-        Map<OpsNode, Integer> reduceCounter = this.reduceCounterMapping.get(jobId);
+        Map<String, Integer> reduceCounter = this.reduceCounterMapping.get(jobId);
         if(!reduceCounter.containsKey(host)) {
             reduceCounter.put(host, 0);
         }
         int count = reduceCounter.get(host);
         reduceCounter.put(host, count++);
-        int reduceNum = this.taskAllocMapping.get(jobId).getReducePreAllocOrder(host.getIp()).get(count - 1);
-        logger.debug("distributeReduceNum: Job: " + jobId + "host: " + host.getIp() 
+        int reduceNum = this.taskAllocMapping.get(jobId).getReducePreAllocOrder(host).get(count - 1);
+        logger.debug("distributeReduceNum: Job: " + jobId + ", host: " + host 
                 + ", count: " + count + ", reduceNum: " + reduceNum);
         return reduceNum;
     }
