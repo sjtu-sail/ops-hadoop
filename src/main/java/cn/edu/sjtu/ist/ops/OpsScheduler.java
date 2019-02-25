@@ -185,7 +185,7 @@ public class OpsScheduler extends Thread {
         }
         logger.info("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
         String host = job.getWorkers().get(0).getIp();
-        taskAlloc.addMapPreAlloc(host, taskAlloc.getMapPreAlloc(host) + mapRemainder);
+        taskAlloc.addMapPreAlloc(host, mapPerNode + mapRemainder);
 
         // reduce
         int reducePerNode = job.getNumReduce() / job.getWorkers().size();
@@ -197,7 +197,7 @@ public class OpsScheduler extends Thread {
         }
         logger.info("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
         host = job.getWorkers().get(0).getIp();
-        taskAlloc.addReducePreAlloc(host, taskAlloc.getReducePreAlloc(host) + reduceRemainder);
+        taskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
 
         // save to scheduler
         logger.debug("Put taskAllocMapping & put etcd Job: " 
