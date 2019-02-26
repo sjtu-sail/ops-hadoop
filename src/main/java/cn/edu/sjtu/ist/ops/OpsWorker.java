@@ -89,7 +89,7 @@ public class OpsWorker extends OpsNode {
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            OpsWorker opsWorker = new OpsWorker(addr.getHostName());
+            OpsWorker opsWorker = new OpsWorker(addr.getHostName().toLowerCase());
 
             opsWorker.start();
             opsWorker.blockUntilShutdown();

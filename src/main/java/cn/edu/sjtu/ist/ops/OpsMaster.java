@@ -84,7 +84,7 @@ public class OpsMaster extends OpsNode {
 
         try {
             InetAddress addr = InetAddress.getLocalHost();
-            OpsMaster opsMaster = new OpsMaster(addr.getHostName());
+            OpsMaster opsMaster = new OpsMaster(addr.getHostName().toLowerCase());
             opsMaster.start();
             opsMaster.blockUntilShutdown();
 
