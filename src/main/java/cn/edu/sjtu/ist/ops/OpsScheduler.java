@@ -29,12 +29,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
-import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.OpsTask;
 import cn.edu.sjtu.ist.ops.common.ReduceConf;
-import cn.edu.sjtu.ist.ops.common.TaskAlloc;
+import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
+import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
@@ -49,8 +49,10 @@ public class OpsScheduler extends Thread {
     private final Random random = new Random();
     private Map<String, ManagedChannel> workerChannels = new HashMap<>();
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs = new HashMap<>();
-    /** Maps from a job to the taskAlloc */
-    private Map<String, TaskAlloc> taskAllocMapping = new HashMap<String, TaskAlloc>();
+    /** Maps from a job to the mapTaskAlloc */
+    private Map<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
+    /** Maps from a job to the reduceTaskAlloc */
+    private Map<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
     private Map<String, Map<String, Integer>> reduceCounterMapping 
             = new HashMap<String, Map<String, Integer>>();
     private OpsWatcher jobWatcher;
@@ -89,7 +91,7 @@ public class OpsScheduler extends Thread {
                     scheduleJob(opsTask.getPendingJob());
                     break;
                 case ONSHUFFLE:
-                    onShuffle(opsTask.getPendingMap());
+                    // onShuffle(opsTask.getPendingMap());
                     break;
                 case REGISTER_REDUCE:
                     registerReduce(opsTask.getPendingReduce(), opsTask.getReduceNum());
@@ -163,7 +165,7 @@ public class OpsScheduler extends Thread {
         }
         int count = reduceCounter.get(host) + 1;
         reduceCounter.put(host, count);
-        int reduceNum = this.taskAllocMapping.get(jobId).getReducePreAllocOrder(host).get(count - 1);
+        int reduceNum = this.reduceTaskAllocMapping.get(jobId).getReducePreAllocOrder(host).get(count - 1);
         logger.debug("distributeReduceNum: Job: " + jobId + ", host: " + host 
                 + ", count: " + count + ", reduceNum: " + reduceNum);
         return reduceNum;
@@ -174,41 +176,44 @@ public class OpsScheduler extends Thread {
         // TODO: Schedule jobs here.
 
         // naive strategy
-        TaskAlloc taskAlloc = new TaskAlloc(job);
+        // mapTaskAlloc
+        MapTaskAlloc mapTaskAlloc = new MapTaskAlloc(job);
         int mapPerNode = job.getNumMap() / job.getWorkers().size();
         int mapRemainder = job.getNumMap() % job.getWorkers().size();
-        // map
+
+        logger.debug("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
+        String host = job.getWorkers().get(0).getIp();
+        mapTaskAlloc.addMapPreAlloc(host, mapPerNode + mapRemainder);
         for (int i = 1; i < job.getWorkers().size(); i++) {
             OpsNode worker = job.getWorkers().get(i);
-            logger.info("addMapPreAlloc: [" + worker.getIp() + ", " + mapPerNode + "]");
-            taskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
+            logger.debug("addMapPreAlloc: [" + worker.getIp() + ", " + mapPerNode + "]");
+            mapTaskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
         }
-        logger.info("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
-        String host = job.getWorkers().get(0).getIp();
-        taskAlloc.addMapPreAlloc(host, mapPerNode + mapRemainder);
+
+        logger.debug("Put MapTaskAllocMapping and put etcd. Job: " 
+                + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
+        this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
+
+        EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
 
         // reduce
+        ReduceTaskAlloc reduceTaskAlloc = new ReduceTaskAlloc(job);
         int reducePerNode = job.getNumReduce() / job.getWorkers().size();
         int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
+        logger.debug("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
+        host = job.getWorkers().get(0).getIp();
+        reduceTaskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
         for (int i = 1; i < job.getWorkers().size(); i++) {
             OpsNode worker = job.getWorkers().get(i);
-            logger.info("addReducePreAlloc: [" + worker.getIp() + ", " + reducePerNode + "]");
-            taskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
+            logger.debug("addReducePreAlloc: [" + worker.getIp() + ", " + reducePerNode + "]");
+            reduceTaskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
         }
-        logger.info("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
-        host = job.getWorkers().get(0).getIp();
-        taskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
 
-        // save to scheduler
-        logger.debug("Put taskAllocMapping & put etcd Job: " 
-                + job.getJobId() + " TaskAlloc: " + gson.toJson(taskAlloc));
-        this.taskAllocMapping.put(job.getJobId(), taskAlloc);
-        // put etcd
-        EtcdService.put(OpsUtils.buildKeyTaskAlloc(job.getJobId()), gson.toJson(taskAlloc));
-    }
+        logger.debug("Put ReduceTaskAllocMapping & put etcd Job: " 
+                + job.getJobId() + " ReduceTaskAlloc: " + gson.toJson(reduceTaskAlloc));
+        this.reduceTaskAllocMapping.put(job.getJobId(), reduceTaskAlloc);
 
-    public void onShuffle(MapConf task) {
-
+        EtcdService.put(OpsUtils.buildKeyReduceTaskAlloc(job.getJobId()), gson.toJson(reduceTaskAlloc));
     }
 
     public void registerReduce(ReduceConf reduce, Integer reduceNum) {

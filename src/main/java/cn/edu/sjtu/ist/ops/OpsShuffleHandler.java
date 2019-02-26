@@ -39,8 +39,8 @@ import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
-import cn.edu.sjtu.ist.ops.common.TaskAlloc;
-import cn.edu.sjtu.ist.ops.common.TaskPreAlloc;
+import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
+import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
 import cn.edu.sjtu.ist.ops.util.EtcdService;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import cn.edu.sjtu.ist.ops.util.OpsWatcher;
@@ -58,13 +58,16 @@ public class OpsShuffleHandler extends Thread {
     private final OpsConf opsConf;
     private final OpsWatcher jobWatcher;
     private final OpsWatcher mapCompletedWatcher;
-    private final OpsWatcher taskAllocWatcher;
+    private final OpsWatcher mapTaskAllocWatcher;
+    private final OpsWatcher reduceTaskAllocWatcher;
     private volatile boolean stopped = false;
     private final Set<ShuffleConf> pendingShuffles = new HashSet<>();
     private final Set<ShuffleCompletedConf> pendingCompletedShuffles = new HashSet<>();
     private final HashMap<String, JobConf> jobs = new HashMap<>();
-    /** Maps from a job to the taskAlloc */
-    private final HashMap<String, TaskAlloc> taskAllocMapping = new HashMap<String, TaskAlloc>();
+    /** Maps from a job to the mapTaskAlloc */
+    private final HashMap<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
+    /** Maps from a job to the reduceTaskAlloc */
+    private final HashMap<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
     private final Random random = new Random();
     private Gson gson = new Gson();
 
@@ -80,7 +83,8 @@ public class OpsShuffleHandler extends Thread {
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
         this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH,
                 "/mapCompleted-" + host.getIp() + "-");
-        this.taskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_TASKALLOC_PATH);
+        this.mapTaskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPTASKALLOC_PATH);
+        this.reduceTaskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKALLOC_PATH);
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
                 .usePlaintext().build();
@@ -103,7 +107,8 @@ public class OpsShuffleHandler extends Thread {
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
             this.jobWatcher.start();
             this.mapCompletedWatcher.start();
-            this.taskAllocWatcher.start();
+            this.mapTaskAllocWatcher.start();
+            this.reduceTaskAllocWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
                 ShuffleCompletedConf shuffleC = null;
@@ -122,10 +127,15 @@ public class OpsShuffleHandler extends Thread {
             this.jobs.put(job.getJobId(), job);
             logger.info("Add new job: " + job.getJobId());
 
-        } else if(key == OpsUtils.ETCD_TASKALLOC_PATH) {
-            TaskAlloc taskAlloc = gson.fromJson(value, TaskAlloc.class);
-            this.taskAllocMapping.put(taskAlloc.getJob().getJobId(), taskAlloc);
-            logger.info("Add taskAlloc: " + taskAlloc.toString());
+        } else if(key == OpsUtils.ETCD_MAPTASKALLOC_PATH) {
+            MapTaskAlloc mapTaskAlloc = gson.fromJson(value, MapTaskAlloc.class);
+            this.mapTaskAllocMapping.put(mapTaskAlloc.getJob().getJobId(), mapTaskAlloc);
+            logger.info("Add MapTaskAlloc: " + mapTaskAlloc.toString());
+
+        } else if(key == OpsUtils.ETCD_REDUCETASKALLOC_PATH) {
+            ReduceTaskAlloc reduceTaskAlloc = gson.fromJson(value, ReduceTaskAlloc.class);
+            this.reduceTaskAllocMapping.put(reduceTaskAlloc.getJob().getJobId(), reduceTaskAlloc);
+            logger.info("Add ReduceTaskAlloc: " + reduceTaskAlloc.toString());
 
         } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
             MapConf map = gson.fromJson(value, MapConf.class);
@@ -134,9 +144,9 @@ public class OpsShuffleHandler extends Thread {
                 return;
             }
             JobConf job = jobs.get(map.getJobId());
-            TaskAlloc taskAlloc = this.taskAllocMapping.get(map.getJobId());
+            ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
             for (OpsNode node : job.getWorkers()) {
-                for (Integer num : taskAlloc.getReducePreAllocOrder(node.getIp())) {
+                for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
                     ShuffleConf shuffle = new ShuffleConf(map, node, num);
                     addPendingShuffles(shuffle);
                 }
