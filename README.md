@@ -33,13 +33,20 @@
 <p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-LifeCycle.png" width="80%"/></p>
 <p align="center">Figure 3:  Lifecyle of OPS</p>
 
+### Structure
+
+<p align="center"><img src="https://github.com/sjtu-ist/OPS/blob/master/fig/ops-Structure.png" width="80%"/></p>
+<p align="center">Figure 4:  OPS Structure</p>
+
 ### ETCD File Structure
 
 - ops/
   - jobs/
     - job-\${jobId}: JobConf
-  - taskAlloc/
-    - taskAlloc-\${jobId}: TaskAlloc
+  - mapTaskAlloc/
+    - mapTaskAlloc-\${jobId}: MapTaskAlloc
+  - reduceTaskAlloc/
+    - reduceTaskAlloc-\${jobId}: ReduceTaskAlloc
   - shuffle/
     - reduceNum/
       - reduceNum-\${nodeIp}-\${jobId}-\${reduceId}: num
