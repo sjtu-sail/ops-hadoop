@@ -39,8 +39,8 @@ public class MapTaskAlloc {
         return job;
     }
 
-    public int getMapPreAlloc(String host) {
-        return this.mapPreAlloc.get(host);
+    public Map<String, Integer> getMapPreAlloc() {
+        return this.mapPreAlloc;
     }
 
     @Override

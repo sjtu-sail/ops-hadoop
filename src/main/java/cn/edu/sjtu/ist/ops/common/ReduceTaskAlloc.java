@@ -53,8 +53,8 @@ public class ReduceTaskAlloc {
         return job;
     }
 
-    public int getReducePreAlloc(String host) {
-        return this.reducePreAlloc.get(host);
+    public Map<String, Integer> getReducePreAlloc() {
+        return this.reducePreAlloc;
     }
 
     public LinkedList<Integer> getReducePreAllocOrder(String host) {
