@@ -231,12 +231,15 @@ public class OpsScheduler extends Thread {
         this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
 
         EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
+    }
 
+    private void scheduleReduces(JobConf job, List<CollectionConf> CollectionList) {
         // reduce
         ReduceTaskAlloc reduceTaskAlloc = new ReduceTaskAlloc(job);
         int reducePerNode = job.getNumReduce() / job.getWorkers().size();
         int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
         logger.debug("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
+        String host = job.getWorkers().get(0).getIp();
         host = job.getWorkers().get(0).getIp();
         reduceTaskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
         for (int i = 1; i < job.getWorkers().size(); i++) {
@@ -250,10 +253,6 @@ public class OpsScheduler extends Thread {
         this.reduceTaskAllocMapping.put(job.getJobId(), reduceTaskAlloc);
 
         EtcdService.put(OpsUtils.buildKeyReduceTaskAlloc(job.getJobId()), gson.toJson(reduceTaskAlloc));
-    }
-
-    private void scheduleReduces(JobConf job, List<CollectionConf> CollectionList) {
-
     } 
 
     public void registerReduce(ReduceConf reduce, Integer reduceNum) {
