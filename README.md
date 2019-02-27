@@ -54,6 +54,8 @@
       - mapCompleted-\${nodeIp}-\${jobId}-\${mapId}: MapConf
     - shuffleCompleted/
       - shuffleCompleted-\${dstNodeIp}-\${jobId}-\${num}-\${mapId}: path
+    - indexRecords/
+      - indexRecords-\${nodeIp}-\${jobId}-\${mapId}: CollectionConf
   - tasks/
     - reduceTasks/
       - reduceTask-\${nodeIp}-\${jobId}-\${reduceId}: ReduceConf
