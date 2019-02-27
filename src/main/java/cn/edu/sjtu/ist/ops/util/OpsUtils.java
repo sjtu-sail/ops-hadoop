@@ -27,6 +27,7 @@ public class OpsUtils {
     public static String ETCD_MAPTASKALLOC_PATH = "ops/mapTaskAlloc";
     public static String ETCD_REDUCETASKALLOC_PATH = "ops/reduceTaskAlloc";
     public static String ETCD_NODES_PATH = "ops/nodes";
+    public static String ETCD_INDEXRECORDS_PATH = "ops/shuffle/indexRecords";
     public static String ETCD_MAPCOMPLETED_PATH = "ops/shuffle/mapCompleted";
     public static String ETCD_SHUFFLECOMPLETED_PATH = "ops/shuffle/shuffleCompleted";
     public static String ETCD_REDUCETASKS_PATH = "ops/tasks/reduceTasks";
@@ -46,6 +47,10 @@ public class OpsUtils {
 
     public static String buildKeyMapCompleted(String nodeIp, String jobId, String mapId) {
         return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + nodeIp + "-" + jobId + "-" + mapId;
+    }
+
+    public static String buildKeyIndexRecords(String nodeIp, String jobId, String mapId) {
+        return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/indexRecords-" + nodeIp + "-" + jobId + "-" + mapId;
     }
 
     public static String buildKeyShuffleCompleted(String dstNodeIp, String jobId, String num, String mapId) {

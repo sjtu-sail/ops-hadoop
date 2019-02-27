@@ -31,6 +31,7 @@ import cn.edu.sjtu.ist.ops.common.HadoopPath;
 import cn.edu.sjtu.ist.ops.common.IndexReader;
 import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
+import cn.edu.sjtu.ist.ops.common.ShuffleHandlerTask;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
@@ -101,7 +102,8 @@ class OpsTransferer extends Thread {
             public void onCompleted() {
                 HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
                         record.getRawLength());
-                shuffleHandler.addPendingCompletedShuffle(new ShuffleCompletedConf(shuffle, hadoopPath));
+                ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(shuffle, hadoopPath);
+                shuffleHandler.addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffleC));
                 channel.shutdown();
             }
         });

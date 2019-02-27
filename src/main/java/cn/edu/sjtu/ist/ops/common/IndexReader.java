@@ -58,6 +58,10 @@ public class IndexReader {
 
     }
 
+    public int getPartitions() {
+        return partitions;
+    }
+
     public IndexRecord getIndex(int partition) {
         final int pos = partition * MAP_OUTPUT_INDEX_RECORD_LENGTH / 8;
         return new IndexRecord(entries.get(pos), entries.get(pos + 1), entries.get(pos + 2));

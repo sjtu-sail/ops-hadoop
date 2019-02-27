@@ -20,6 +20,8 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +39,11 @@ import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.MapConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
+import cn.edu.sjtu.ist.ops.common.CollectionConf;
+import cn.edu.sjtu.ist.ops.common.IndexReader;
+import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
+import cn.edu.sjtu.ist.ops.common.ShuffleHandlerTask;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
 import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
@@ -62,7 +68,7 @@ public class OpsShuffleHandler extends Thread {
     private final OpsWatcher reduceTaskAllocWatcher;
     private volatile boolean stopped = false;
     private final Set<ShuffleConf> pendingShuffles = new HashSet<>();
-    private final Set<ShuffleCompletedConf> pendingCompletedShuffles = new HashSet<>();
+    private final Set<ShuffleHandlerTask> pendingShuffleHandlerTasks = new HashSet<>();
     private final HashMap<String, JobConf> jobs = new HashMap<>();
     /** Maps from a job to the mapTaskAlloc */
     private final HashMap<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
@@ -111,9 +117,19 @@ public class OpsShuffleHandler extends Thread {
             this.reduceTaskAllocWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
-                ShuffleCompletedConf shuffleC = null;
-                shuffleC = this.getCompletedShuffle();
-                this.shuffleCompleted(shuffleC);
+                ShuffleHandlerTask shuffleHandlerTask = null;
+                shuffleHandlerTask = this.getPendingShuffleHandlerTask();
+                switch (shuffleHandlerTask.getType()) {
+                case SHUFFLECOMPLETED:
+                    this.shuffleCompleted(shuffleHandlerTask.getShuffleC());
+                    break;
+                case COLLECTION:
+                    this.collectIndexRecords(shuffleHandlerTask.getCollection(),
+                            shuffleHandlerTask.getMapConf());
+                    break;
+                default:
+                    break;
+                }
             }
         } catch (Exception e) {
             // TODO: handle exception
@@ -143,6 +159,7 @@ public class OpsShuffleHandler extends Thread {
                 logger.error("JobId not found: " + map.getJobId());
                 return;
             }
+            // Add pendingShuffles, notify transferer to shuffle data
             JobConf job = jobs.get(map.getJobId());
             ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
             for (OpsNode node : job.getWorkers()) {
@@ -151,6 +168,15 @@ public class OpsShuffleHandler extends Thread {
                     addPendingShuffles(shuffle);
                 }
             }
+
+            // Add pendingShuffleHandlerTask, collection IndexRecord and put ETCD
+            IndexReader indexReader = new IndexReader(map.getIndexPath().toString());
+            List<IndexRecord> records = new LinkedList<>();
+            for(int i = 0; i < indexReader.getPartitions(); i++) {
+                records.add(indexReader.getIndex(i));
+            }
+            CollectionConf collectionConf = new CollectionConf(records);
+            addPendingShuffleHandlerTask(new ShuffleHandlerTask(collectionConf, map));
         }
     }
 
@@ -172,21 +198,21 @@ public class OpsShuffleHandler extends Thread {
         return shuffle;
     }
 
-    public synchronized ShuffleCompletedConf getCompletedShuffle() throws InterruptedException {
-        while (this.pendingCompletedShuffles.isEmpty()) {
+    public synchronized ShuffleHandlerTask getPendingShuffleHandlerTask() throws InterruptedException {
+        while (this.pendingShuffleHandlerTasks.isEmpty()) {
             wait();
         }
 
-        ShuffleCompletedConf task = null;
+        ShuffleHandlerTask task = null;
 
-        Iterator<ShuffleCompletedConf> iter = this.pendingCompletedShuffles.iterator();
-        int numToPick = random.nextInt(this.pendingCompletedShuffles.size());
+        Iterator<ShuffleHandlerTask> iter = this.pendingShuffleHandlerTasks.iterator();
+        int numToPick = random.nextInt(this.pendingShuffleHandlerTasks.size());
         for (int i = 0; i <= numToPick; ++i) {
             task = iter.next();
         }
-        this.pendingCompletedShuffles.remove(task);
+        this.pendingShuffleHandlerTasks.remove(task);
 
-        logger.debug("Get pendingCompletedShuffle " + task.toString());
+        logger.debug("Get pendingShuffleHandlerTask: " + task.toString());
         return task;
     }
 
@@ -201,9 +227,9 @@ public class OpsShuffleHandler extends Thread {
         notifyAll();
     }
 
-    public synchronized void addPendingCompletedShuffle(ShuffleCompletedConf shuffleC) {
-        pendingCompletedShuffles.add(shuffleC);
-        logger.debug("Add pendingCompletedShuffle: " + shuffleC.toString());
+    public synchronized void addPendingShuffleHandlerTask(ShuffleHandlerTask task) {
+        pendingShuffleHandlerTasks.add(task);
+        logger.debug("Add pendingShuffleHandlerTasks: " + task.toString());
         notifyAll();
     }
 
@@ -212,6 +238,12 @@ public class OpsShuffleHandler extends Thread {
                 OpsUtils.buildKeyShuffleCompleted(shuffleC.getDstNode().getIp(), shuffleC.getTask().getJobId(),
                         shuffleC.getNum().toString(), shuffleC.getTask().getTaskId()),
                 gson.toJson(shuffleC.getHadoopPath()));
+    }
+
+    public void collectIndexRecords(CollectionConf collection, MapConf map) {
+        EtcdService.put(
+                OpsUtils.buildKeyIndexRecords(map.getOpsNode().getIp(), map.getJobId(), map.getTaskId()),
+                gson.toJson(collection));
     }
 
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
