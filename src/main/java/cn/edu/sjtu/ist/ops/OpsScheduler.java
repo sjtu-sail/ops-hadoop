@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
-import cn.edu.sjtu.ist.ops.common.OpsTask;
+import cn.edu.sjtu.ist.ops.common.SchedulerTask;
 import cn.edu.sjtu.ist.ops.common.ReduceConf;
 import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
 import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
@@ -61,7 +61,7 @@ public class OpsScheduler extends Thread {
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs = new HashMap<>();
     private volatile boolean stopped;
-    private Set<OpsTask> pendingOpsTasks = new HashSet<>();
+    private Set<SchedulerTask> pendingSchedulerTasks = new HashSet<>();
     private Gson gson = new Gson();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
@@ -84,17 +84,14 @@ public class OpsScheduler extends Thread {
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
-                OpsTask opsTask = null;
-                opsTask = this.getPendingOpsTask();
-                switch (opsTask.getType()) {
+                SchedulerTask schedulerTask = null;
+                schedulerTask = this.getPendingSchedulerTask();
+                switch (schedulerTask.getType()) {
                 case SCHEDULE:
-                    scheduleJob(opsTask.getPendingJob());
-                    break;
-                case ONSHUFFLE:
-                    // onShuffle(opsTask.getPendingMap());
+                    scheduleJob(schedulerTask.getPendingJob());
                     break;
                 case REGISTER_REDUCE:
-                    registerReduce(opsTask.getPendingReduce(), opsTask.getReduceNum());
+                    registerReduce(schedulerTask.getPendingReduce(), schedulerTask.getReduceNum());
                     break;
                 default:
                     break;
@@ -114,32 +111,32 @@ public class OpsScheduler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
-            this.addPendingOpsTask(new OpsTask(job));
+            this.addPendingSchedulerTask(new SchedulerTask(job));
             logger.info("Add new job: " + job.getJobId());
         } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
             ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
             int reduceNum = this.distributeReduceNum(reduce.getJobId(), reduce.getOpsNode().getIp());
-            this.addPendingOpsTask(new OpsTask(reduce, reduceNum));
+            this.addPendingSchedulerTask(new SchedulerTask(reduce, reduceNum));
             logger.info("Register new reduce task: " + reduce.toString());
         }
     }
 
-    public synchronized OpsTask getPendingOpsTask() throws InterruptedException {
-        while (pendingOpsTasks.isEmpty()) {
+    public synchronized SchedulerTask getPendingSchedulerTask() throws InterruptedException {
+        while (pendingSchedulerTasks.isEmpty()) {
             wait();
         }
 
-        OpsTask opsTask = null;
-        Iterator<OpsTask> iter = pendingOpsTasks.iterator();
-        int numToPick = random.nextInt(pendingOpsTasks.size());
+        SchedulerTask schedulerTask = null;
+        Iterator<SchedulerTask> iter = pendingSchedulerTasks.iterator();
+        int numToPick = random.nextInt(pendingSchedulerTasks.size());
         for (int i = 0; i <= numToPick; ++i) {
-            opsTask = iter.next();
+            schedulerTask = iter.next();
         }
 
-        pendingOpsTasks.remove(opsTask);
+        pendingSchedulerTasks.remove(schedulerTask);
 
-        logger.debug("Assigning " + opsTask.toString());
-        return opsTask;
+        logger.debug("Assigning " + schedulerTask.toString());
+        return schedulerTask;
     }
 
     public synchronized void setupWorkersGRPC() {
@@ -223,25 +220,9 @@ public class OpsScheduler extends Thread {
                 reduceNum.toString());
     }
 
-    public synchronized void addPendingOpsTask(OpsTask opsTask) {
-        switch (opsTask.getType()) {
-        case SCHEDULE:
-            this.pendingOpsTasks.add(opsTask);
-            notifyAll();
-            break;
-        case ONSHUFFLE:
-            // MapConf task = opsTask.getPendingMap();
-            // job.mapTaskCompleted(task);
-            this.pendingOpsTasks.add(opsTask);
-            notifyAll();
-            break;
-        case REGISTER_REDUCE:
-            this.pendingOpsTasks.add(opsTask);
-            notifyAll();
-            break;
-        default:
-            break;
-        }
-        logger.debug("Add pending OpsTask: " + opsTask.toString());
+    public synchronized void addPendingSchedulerTask(SchedulerTask schedulerTask) {
+        this.pendingSchedulerTasks.add(schedulerTask);
+        notifyAll();
+        logger.debug("Add pending SchedulerTask: " + schedulerTask.toString());
     }
 }

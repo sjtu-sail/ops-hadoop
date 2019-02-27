@@ -18,28 +18,22 @@ package cn.edu.sjtu.ist.ops.common;
 
 import com.google.gson.Gson;
 
-public class OpsTask {
+public class SchedulerTask {
     public static enum Type {
-        SCHEDULE, ONSHUFFLE, REGISTER_REDUCE
+        SCHEDULE, REGISTER_REDUCE
     }
 
     private Type type;
     private JobConf pendingJob;
-    private MapConf pendingMap;
     private ReduceConf pendingReduce;
     private Integer reduceNum;
 
-    public OpsTask(JobConf job) {
+    public SchedulerTask(JobConf job) {
         this.type = Type.SCHEDULE;
         this.pendingJob = job;
     }
 
-    public OpsTask(MapConf pendingTask) {
-        this.type = Type.ONSHUFFLE;
-        this.pendingMap = pendingTask;
-    }
-
-    public OpsTask(ReduceConf reduce, Integer reduceNum) {
+    public SchedulerTask(ReduceConf reduce, Integer reduceNum) {
         this.type = Type.REGISTER_REDUCE;
         this.pendingReduce = reduce;
         this.reduceNum = reduceNum;
@@ -51,10 +45,6 @@ public class OpsTask {
 
     public JobConf getPendingJob() {
         return this.pendingJob;
-    }
-
-    public MapConf getPendingMap() {
-        return this.pendingMap;
     }
 
     public ReduceConf getPendingReduce() {
