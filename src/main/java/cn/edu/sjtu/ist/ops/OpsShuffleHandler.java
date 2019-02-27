@@ -154,7 +154,7 @@ public class OpsShuffleHandler extends Thread {
             logger.info("Add ReduceTaskAlloc: " + reduceTaskAlloc.toString());
 
             String jobId = reduceTaskAlloc.getJob().getJobId();
-            if(!this.completedMapsMapping.containsKey(jobId)) {
+            if(this.completedMapsMapping.containsKey(jobId)) {
                 // If there are pendingCompletedMaps, start pre-shuffle.
                 List<MapConf> completedMapList = this.completedMapsMapping.get(jobId);
                 for (MapConf map : completedMapList) {
