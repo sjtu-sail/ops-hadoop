@@ -50,7 +50,7 @@ public class OpsUtils {
     }
 
     public static String buildKeyIndexRecords(String nodeIp, String jobId, String mapId) {
-        return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/indexRecords-" + nodeIp + "-" + jobId + "-" + mapId;
+        return OpsUtils.ETCD_INDEXRECORDS_PATH + "/indexRecords-" + nodeIp + "-" + jobId + "-" + mapId;
     }
 
     public static String buildKeyShuffleCompleted(String dstNodeIp, String jobId, String num, String mapId) {
