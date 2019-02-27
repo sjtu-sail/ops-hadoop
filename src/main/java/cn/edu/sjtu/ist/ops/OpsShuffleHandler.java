@@ -74,6 +74,7 @@ public class OpsShuffleHandler extends Thread {
     private final HashMap<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
     /** Maps from a job to the reduceTaskAlloc */
     private final HashMap<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
+    private final HashMap<String, List<MapConf>> completedMapsMapping = new HashMap<String, List<MapConf>>();
     private final Random random = new Random();
     private Gson gson = new Gson();
 
@@ -152,21 +153,51 @@ public class OpsShuffleHandler extends Thread {
             this.reduceTaskAllocMapping.put(reduceTaskAlloc.getJob().getJobId(), reduceTaskAlloc);
             logger.info("Add ReduceTaskAlloc: " + reduceTaskAlloc.toString());
 
+            String jobId = reduceTaskAlloc.getJob().getJobId();
+            if(!this.completedMapsMapping.containsKey(jobId)) {
+                // If there are pendingCompletedMaps, start pre-shuffle.
+                List<MapConf> completedMapList = this.completedMapsMapping.get(jobId);
+                for (MapConf map : completedMapList) {
+                    for (OpsNode node : reduceTaskAlloc.getJob().getWorkers()) {
+                        for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
+                            ShuffleConf shuffle = new ShuffleConf(map, node, num);
+                            addPendingShuffles(shuffle);
+                        }
+                    }
+                }
+                this.completedMapsMapping.remove(jobId);
+            }
+
         } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
             MapConf map = gson.fromJson(value, MapConf.class);
             if (!jobs.containsKey(map.getJobId())) {
                 logger.error("JobId not found: " + map.getJobId());
                 return;
             }
-            // Add pendingShuffles, notify transferer to shuffle data
             JobConf job = jobs.get(map.getJobId());
-            ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
-            for (OpsNode node : job.getWorkers()) {
-                for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
-                    ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                    addPendingShuffles(shuffle);
+            if(this.reduceTaskAllocMapping.containsKey(map.getJobId())) {
+                // Add pendingShuffles, notify transferer to shuffle data
+                ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
+                for (OpsNode node : job.getWorkers()) {
+                    for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
+                        ShuffleConf shuffle = new ShuffleConf(map, node, num);
+                        addPendingShuffles(shuffle);
+                    }
                 }
+            } else {
+                // If ReducePreAlloc is not ready, wait for it.
+                if(!this.completedMapsMapping.containsKey(map.getJobId())) {
+                    List<MapConf> mapList = new LinkedList<>();
+                    mapList.add(map);
+                    this.completedMapsMapping.put(map.getJobId(), mapList);
+                } else {
+                    List<MapConf> mapList = this.completedMapsMapping.get(map.getJobId());
+                    mapList.add(map);
+                    this.completedMapsMapping.put(map.getJobId(), mapList);
+                }
+                logger.debug("Waiting for ReduceTaskAlloc.");
             }
+            
 
             // Add pendingShuffleHandlerTask, collection IndexRecord and put ETCD
             IndexReader indexReader = new IndexReader(map.getIndexPath().toString());
