@@ -26,17 +26,15 @@ public class ShuffleHandlerTask {
     private Type type;
     private ShuffleCompletedConf shuffleC;
     private CollectionConf collection;
-    private MapConf map;
 
     public ShuffleHandlerTask(ShuffleCompletedConf shuffleC) {
         this.type = Type.SHUFFLECOMPLETED;
         this.shuffleC = shuffleC;
     }
 
-    public ShuffleHandlerTask(CollectionConf collection, MapConf map) {
+    public ShuffleHandlerTask(CollectionConf collection) {
         this.type = Type.COLLECTION;
         this.collection = collection;
-        this.map = map;
     }
 
     public Type getType() {
@@ -45,10 +43,6 @@ public class ShuffleHandlerTask {
 
     public CollectionConf getCollection() {
         return collection;
-    }
-
-    public MapConf getMapConf() {
-        return map;
     }
 
     public ShuffleCompletedConf getShuffleC() {

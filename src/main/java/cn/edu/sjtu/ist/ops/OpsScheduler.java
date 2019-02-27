@@ -16,6 +16,8 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import java.util.List;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,6 +30,7 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cn.edu.sjtu.ist.ops.common.CollectionConf;
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
@@ -46,6 +49,8 @@ public class OpsScheduler extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsScheduler.class);
 
+    public static final float DEFAULT_COMPLETED_MAPS_PERCENT_FOR_SCHEDULE_REDUCE = 0.1f;
+
     private final Random random = new Random();
     private Map<String, ManagedChannel> workerChannels = new HashMap<>();
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs = new HashMap<>();
@@ -53,10 +58,16 @@ public class OpsScheduler extends Thread {
     private Map<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
     /** Maps from a job to the reduceTaskAlloc */
     private Map<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
+    /** Equals to Map<JobId, Map<ReduceId, Integer>> */
     private Map<String, Map<String, Integer>> reduceCounterMapping 
             = new HashMap<String, Map<String, Integer>>();
+    /** Equals to Map<JobId, List<CollectionConf>> */
+    private Map<String, List<CollectionConf>> collectionMapping 
+            = new HashMap<String, List<CollectionConf>>();
+    private Map<String, Boolean> isScheduleReduce = new HashMap<String, Boolean>();
     private OpsWatcher jobWatcher;
     private OpsWatcher reduceWatcher;
+    private OpsWatcher indexRecordsWatcher;
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs = new HashMap<>();
@@ -67,6 +78,7 @@ public class OpsScheduler extends Thread {
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
         this.reduceWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKS_PATH);
+        this.indexRecordsWatcher = new OpsWatcher(this, OpsUtils.ETCD_INDEXRECORDS_PATH);
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
@@ -81,6 +93,7 @@ public class OpsScheduler extends Thread {
         try {
             this.jobWatcher.start();
             this.reduceWatcher.start();
+            this.indexRecordsWatcher.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
@@ -88,7 +101,10 @@ public class OpsScheduler extends Thread {
                 schedulerTask = this.getPendingSchedulerTask();
                 switch (schedulerTask.getType()) {
                 case SCHEDULE:
-                    scheduleJob(schedulerTask.getPendingJob());
+                    scheduleMaps(schedulerTask.getPendingJob());
+                    break;
+                case SCHEDULE_REDUCE:
+                    scheduleReduces(schedulerTask.getPendingJob(), schedulerTask.getCollectionList());
                     break;
                 case REGISTER_REDUCE:
                     registerReduce(schedulerTask.getPendingReduce(), schedulerTask.getReduceNum());
@@ -118,6 +134,29 @@ public class OpsScheduler extends Thread {
             int reduceNum = this.distributeReduceNum(reduce.getJobId(), reduce.getOpsNode().getIp());
             this.addPendingSchedulerTask(new SchedulerTask(reduce, reduceNum));
             logger.info("Register new reduce task: " + reduce.toString());
+        } else if (key == OpsUtils.ETCD_INDEXRECORDS_PATH) {
+            CollectionConf collection = gson.fromJson(value, CollectionConf.class);
+            String jobId = collection.getJobId();
+            if(!this.collectionMapping.containsKey(jobId)) {
+                this.collectionMapping.put(jobId, new LinkedList<CollectionConf>());
+            }
+            List<CollectionConf> collectionList = this.collectionMapping.get(jobId);
+            collectionList.add(collection);
+            logger.info("Add new collection: " + collection.toString());
+
+            int completedMapsForScheduleReduce = (int)Math.ceil(
+                    DEFAULT_COMPLETED_MAPS_PERCENT_FOR_SCHEDULE_REDUCE * 
+                    this.jobs.get(jobId).getNumMap());
+            if(collectionList.size() >= completedMapsForScheduleReduce) {
+                if(this.isScheduleReduce.containsKey(jobId)) {
+                    logger.info("Already schedule reduce jobId: " + jobId);
+                    return;
+                }
+                this.isScheduleReduce.put(jobId, true);
+                JobConf job = this.jobs.get(jobId);
+                this.addPendingSchedulerTask(new SchedulerTask(job, collectionList));
+                logger.info("Schedule Reduce. JobId: " + jobId + ", collectionListSize: " + collectionList.size());
+            }
         }
     }
 
@@ -168,7 +207,7 @@ public class OpsScheduler extends Thread {
         return reduceNum;
     }
 
-    public void scheduleJob(JobConf job) {
+    private void scheduleMaps(JobConf job) {
         logger.info("Schedule new job: " + job.getJobId());
         // TODO: Schedule jobs here.
 
@@ -212,6 +251,10 @@ public class OpsScheduler extends Thread {
 
         EtcdService.put(OpsUtils.buildKeyReduceTaskAlloc(job.getJobId()), gson.toJson(reduceTaskAlloc));
     }
+
+    private void scheduleReduces(JobConf job, List<CollectionConf> CollectionList) {
+
+    } 
 
     public void registerReduce(ReduceConf reduce, Integer reduceNum) {
         logger.debug("registerReduce: "

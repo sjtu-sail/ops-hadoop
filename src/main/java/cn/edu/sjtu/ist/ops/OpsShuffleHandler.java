@@ -124,8 +124,7 @@ public class OpsShuffleHandler extends Thread {
                     this.shuffleCompleted(shuffleHandlerTask.getShuffleC());
                     break;
                 case COLLECTION:
-                    this.collectIndexRecords(shuffleHandlerTask.getCollection(),
-                            shuffleHandlerTask.getMapConf());
+                    this.collectIndexRecords(shuffleHandlerTask.getCollection());
                     break;
                 default:
                     break;
@@ -175,8 +174,8 @@ public class OpsShuffleHandler extends Thread {
             for(int i = 0; i < indexReader.getPartitions(); i++) {
                 records.add(indexReader.getIndex(i));
             }
-            CollectionConf collectionConf = new CollectionConf(records);
-            addPendingShuffleHandlerTask(new ShuffleHandlerTask(collectionConf, map));
+            CollectionConf collectionConf = new CollectionConf(map.getOpsNode().getIp(), map.getJobId(), map.getTaskId(), records);
+            addPendingShuffleHandlerTask(new ShuffleHandlerTask(collectionConf));
         }
     }
 
@@ -240,9 +239,9 @@ public class OpsShuffleHandler extends Thread {
                 gson.toJson(shuffleC.getHadoopPath()));
     }
 
-    public void collectIndexRecords(CollectionConf collection, MapConf map) {
+    public void collectIndexRecords(CollectionConf collection) {
         EtcdService.put(
-                OpsUtils.buildKeyIndexRecords(map.getOpsNode().getIp(), map.getJobId(), map.getTaskId()),
+                OpsUtils.buildKeyIndexRecords(collection.getHost(), collection.getJobId(), collection.getMapId()),
                 gson.toJson(collection));
     }
 

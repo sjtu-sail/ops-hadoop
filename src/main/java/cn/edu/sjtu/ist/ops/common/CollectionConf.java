@@ -21,14 +21,32 @@ import com.google.gson.Gson;
 import java.util.List;
 
 public class CollectionConf {
+    private final String host;
+    private final String jobId;
+    private final String mapId;
     private final List<IndexRecord> records;
 
-    public CollectionConf(List<IndexRecord> records) {
+    public CollectionConf(String host, String jobId, String mapId, List<IndexRecord> records) {
+        this.host = host;
+        this.jobId = jobId;
+        this.mapId = mapId;
         this.records = records;
     }
 
     public List<IndexRecord> getRecords() {
         return this.records;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public String getMapId() {
+        return mapId;
     }
 
     @Override

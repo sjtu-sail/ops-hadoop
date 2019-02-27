@@ -16,21 +16,30 @@
 
 package cn.edu.sjtu.ist.ops.common;
 
+import java.util.List;
+
 import com.google.gson.Gson;
 
 public class SchedulerTask {
     public static enum Type {
-        SCHEDULE, REGISTER_REDUCE
+        SCHEDULE, REGISTER_REDUCE, SCHEDULE_REDUCE
     }
 
     private Type type;
     private JobConf pendingJob;
+    private List<CollectionConf> collectionList;
     private ReduceConf pendingReduce;
     private Integer reduceNum;
 
     public SchedulerTask(JobConf job) {
         this.type = Type.SCHEDULE;
         this.pendingJob = job;
+    }
+
+    public SchedulerTask(JobConf job, List<CollectionConf> collectionList) {
+        this.type = Type.SCHEDULE_REDUCE;
+        this.pendingJob = job;
+        this.collectionList = collectionList;
     }
 
     public SchedulerTask(ReduceConf reduce, Integer reduceNum) {
@@ -45,6 +54,10 @@ public class SchedulerTask {
 
     public JobConf getPendingJob() {
         return this.pendingJob;
+    }
+
+    public List<CollectionConf> getCollectionList() {
+        return collectionList;
     }
 
     public ReduceConf getPendingReduce() {
