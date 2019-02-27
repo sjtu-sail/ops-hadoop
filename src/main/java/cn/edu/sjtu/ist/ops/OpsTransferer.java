@@ -142,7 +142,8 @@ class OpsTransferer extends Thread {
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
                     .setContent(ByteString.copyFrom(buffer, 0, length)).build();
             requestObserver.onNext(chunk);
-
+            
+            input.close();
         } catch (RuntimeException e) {
             // Cancel RPC
             requestObserver.onError(e);
