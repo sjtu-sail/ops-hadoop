@@ -144,6 +144,7 @@ public class OpsScheduler extends Thread {
             collectionList.add(collection);
             logger.info("Add new collection: " + collection.toString());
 
+            // If collections(chunk size) meets default percent, start schedule reducePreAlloc.
             int completedMapsForScheduleReduce = (int)Math.ceil(
                     DEFAULT_COMPLETED_MAPS_PERCENT_FOR_SCHEDULE_REDUCE * 
                     this.jobs.get(jobId).getNumMap());
