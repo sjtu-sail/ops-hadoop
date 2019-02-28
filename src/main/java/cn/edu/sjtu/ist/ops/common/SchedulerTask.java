@@ -22,7 +22,7 @@ import com.google.gson.Gson;
 
 public class SchedulerTask {
     public static enum Type {
-        SCHEDULE, REGISTER_REDUCE, SCHEDULE_REDUCE
+        SCHEDULE_MAP, REGISTER_REDUCE, SCHEDULE_REDUCE
     }
 
     private Type type;
@@ -32,7 +32,7 @@ public class SchedulerTask {
     private Integer reduceNum;
 
     public SchedulerTask(JobConf job) {
-        this.type = Type.SCHEDULE;
+        this.type = Type.SCHEDULE_MAP;
         this.pendingJob = job;
     }
 

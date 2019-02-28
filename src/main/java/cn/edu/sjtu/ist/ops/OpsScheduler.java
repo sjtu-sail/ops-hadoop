@@ -100,7 +100,7 @@ public class OpsScheduler extends Thread {
                 SchedulerTask schedulerTask = null;
                 schedulerTask = this.getPendingSchedulerTask();
                 switch (schedulerTask.getType()) {
-                case SCHEDULE:
+                case SCHEDULE_MAP:
                     scheduleMaps(schedulerTask.getPendingJob());
                     break;
                 case SCHEDULE_REDUCE:
