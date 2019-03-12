@@ -113,25 +113,9 @@ class Worker {
 
 class Etcd {
     @JsonProperty
-    private List<Endpoint> endpoints;
+    private List<String> endpoints;
 
-    public List<Endpoint> getEndpoints() {
+    public List<String> getEndpoints() {
         return endpoints;
-    }
-}
-
-class Endpoint {
-    @JsonProperty
-    private String hostname;
-
-    @JsonProperty
-    private Integer port;
-
-    public String getHostname() {
-        return hostname;
-    }
-
-    public Integer getPort() {
-        return port;
     }
 }

@@ -45,8 +45,7 @@ public class EtcdService {
                 OpsConfig conf = mapper.readValue(
                         Thread.currentThread().getContextClassLoader().getResourceAsStream("config.yml"),
                         OpsConfig.class);
-                client = Client.builder().endpoints(conf.getEtcd().getEndpoints().get(0).getHostname() + ":"
-                        + String.valueOf(conf.getEtcd().getEndpoints().get(0).getPort())).build();
+                client = Client.builder().endpoints(conf.getEtcd().getEndpoints()).build();
             } catch (IOException e) {
                 e.printStackTrace();
             }
