@@ -118,7 +118,7 @@ class OpsTransferer extends Thread {
                     new FileInputStream(new File(shuffle.getTask().getPath())));
             input.skip(startOffset);
 
-            int bufferSize = 256 * 1024;// 256k
+            int bufferSize = 4096 * 1024;// 4M
 
             byte[] buffer = new byte[bufferSize];
             int length;
