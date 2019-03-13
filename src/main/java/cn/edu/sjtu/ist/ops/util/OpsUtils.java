@@ -34,36 +34,36 @@ public class OpsUtils {
     public static String ETCD_REDUCENUM_PATH = "ops/shuffle/reduceNum";
 
     public static String buildKeyJob(String jobId) {
-        return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId;
+        return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId + "-";
     }
 
     public static String buildKeyMapTaskAlloc(String jobId) {
-        return OpsUtils.ETCD_MAPTASKALLOC_PATH + "/mapTaskAlloc-" + jobId;
+        return OpsUtils.ETCD_MAPTASKALLOC_PATH + "/mapTaskAlloc-" + jobId + "-";
     }
 
     public static String buildKeyReduceTaskAlloc(String jobId) {
-        return OpsUtils.ETCD_REDUCETASKALLOC_PATH + "/reduceTaskAlloc-" + jobId;
+        return OpsUtils.ETCD_REDUCETASKALLOC_PATH + "/reduceTaskAlloc-" + jobId + "-";
     }
 
     public static String buildKeyMapCompleted(String nodeIp, String jobId, String mapId) {
-        return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + nodeIp + "-" + jobId + "-" + mapId;
+        return OpsUtils.ETCD_MAPCOMPLETED_PATH + "/mapCompleted-" + nodeIp + "-" + jobId + "-" + mapId + "-";
     }
 
     public static String buildKeyIndexRecords(String nodeIp, String jobId, String mapId) {
-        return OpsUtils.ETCD_INDEXRECORDS_PATH + "/indexRecords-" + nodeIp + "-" + jobId + "-" + mapId;
+        return OpsUtils.ETCD_INDEXRECORDS_PATH + "/indexRecords-" + nodeIp + "-" + jobId + "-" + mapId + "-";
     }
 
     public static String buildKeyShuffleCompleted(String dstNodeIp, String jobId, String num, String mapId) {
         return OpsUtils.ETCD_SHUFFLECOMPLETED_PATH + "/shuffleCompleted-" + dstNodeIp + "-" + jobId + "-" + num + "-"
-                + mapId;
+                + mapId + "-";
     }
 
     public static String buildKeyReduceTask(String nodeIp, String jobId, String reduceId) {
-        return OpsUtils.ETCD_REDUCETASKS_PATH + "/reduceTasks-" + nodeIp + "-" + jobId + "-" + reduceId;
+        return OpsUtils.ETCD_REDUCETASKS_PATH + "/reduceTasks-" + nodeIp + "-" + jobId + "-" + reduceId + "-";
     }
 
     public static String buildKeyReduceNum(String nodeIp, String jobId, String reduceId) {
-        return OpsUtils.ETCD_REDUCENUM_PATH + "/reduceNum-" + nodeIp + "-" + jobId + "-" + reduceId;
+        return OpsUtils.ETCD_REDUCENUM_PATH + "/reduceNum-" + nodeIp + "-" + jobId + "-" + reduceId + "-";
     }
 
     public static void initLocalDir(String localDir) {
