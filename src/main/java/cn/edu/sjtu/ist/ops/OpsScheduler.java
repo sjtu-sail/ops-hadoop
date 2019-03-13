@@ -98,13 +98,28 @@ public class OpsScheduler extends Thread {
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
                 SchedulerTask schedulerTask = null;
+                JobConf job = null;
                 schedulerTask = this.getPendingSchedulerTask();
                 switch (schedulerTask.getType()) {
                 case SCHEDULE_MAP:
-                    scheduleMaps(schedulerTask.getPendingJob());
+                    job = schedulerTask.getPendingJob();
+                    MapTaskAlloc mapTaskAlloc = OpsScheStratagies.balancedMaps(job);
+
+                    logger.debug("Put MapTaskAllocMapping and put etcd. Job: " 
+                            + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
+                    this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
+                    EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
+
                     break;
                 case SCHEDULE_REDUCE:
-                    scheduleReduces(schedulerTask.getPendingJob(), schedulerTask.getCollectionList());
+                    job = schedulerTask.getPendingJob();
+                    ReduceTaskAlloc reduceTaskAlloc = OpsScheStratagies.balancedReduces(job, schedulerTask.getCollectionList());
+
+                    logger.debug("Put ReduceTaskAllocMapping & put etcd Job: " 
+                            + job.getJobId() + " ReduceTaskAlloc: " + gson.toJson(reduceTaskAlloc));
+                    this.reduceTaskAllocMapping.put(job.getJobId(), reduceTaskAlloc);
+                    EtcdService.put(OpsUtils.buildKeyReduceTaskAlloc(job.getJobId()), gson.toJson(reduceTaskAlloc));
+
                     break;
                 case REGISTER_REDUCE:
                     registerReduce(schedulerTask.getPendingReduce(), schedulerTask.getReduceNum());
@@ -207,54 +222,6 @@ public class OpsScheduler extends Thread {
                 + ", count: " + count + ", reduceNum: " + reduceNum);
         return reduceNum;
     }
-
-    private void scheduleMaps(JobConf job) {
-        logger.info("Schedule new job: " + job.getJobId());
-        // TODO: Schedule jobs here.
-
-        // naive strategy
-        // mapTaskAlloc
-        MapTaskAlloc mapTaskAlloc = new MapTaskAlloc(job);
-        int mapPerNode = job.getNumMap() / job.getWorkers().size();
-        int mapRemainder = job.getNumMap() % job.getWorkers().size();
-
-        logger.debug("addMapPreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + mapRemainder + "]");
-        String host = job.getWorkers().get(0).getIp();
-        mapTaskAlloc.addMapPreAlloc(host, mapPerNode + mapRemainder);
-        for (int i = 1; i < job.getWorkers().size(); i++) {
-            OpsNode worker = job.getWorkers().get(i);
-            logger.debug("addMapPreAlloc: [" + worker.getIp() + ", " + mapPerNode + "]");
-            mapTaskAlloc.addMapPreAlloc(worker.getIp(), mapPerNode);
-        }
-
-        logger.debug("Put MapTaskAllocMapping and put etcd. Job: " 
-                + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
-        this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
-
-        EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
-    }
-
-    private void scheduleReduces(JobConf job, List<CollectionConf> CollectionList) {
-        // reduce
-        ReduceTaskAlloc reduceTaskAlloc = new ReduceTaskAlloc(job);
-        int reducePerNode = job.getNumReduce() / job.getWorkers().size();
-        int reduceRemainder = job.getNumReduce() % job.getWorkers().size();
-        logger.debug("addReducePreAlloc remainder: [" + job.getWorkers().get(0).getIp() + ", " + reduceRemainder + "]");
-        String host = job.getWorkers().get(0).getIp();
-        host = job.getWorkers().get(0).getIp();
-        reduceTaskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
-        for (int i = 1; i < job.getWorkers().size(); i++) {
-            OpsNode worker = job.getWorkers().get(i);
-            logger.debug("addReducePreAlloc: [" + worker.getIp() + ", " + reducePerNode + "]");
-            reduceTaskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
-        }
-
-        logger.debug("Put ReduceTaskAllocMapping & put etcd Job: " 
-                + job.getJobId() + " ReduceTaskAlloc: " + gson.toJson(reduceTaskAlloc));
-        this.reduceTaskAllocMapping.put(job.getJobId(), reduceTaskAlloc);
-
-        EtcdService.put(OpsUtils.buildKeyReduceTaskAlloc(job.getJobId()), gson.toJson(reduceTaskAlloc));
-    } 
 
     public void registerReduce(ReduceConf reduce, Integer reduceNum) {
         logger.debug("registerReduce: "
