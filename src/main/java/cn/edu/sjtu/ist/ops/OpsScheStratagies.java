@@ -102,7 +102,7 @@ public class OpsScheStratagies {
         String host = job.getWorkers().get(0).getIp();
         host = job.getWorkers().get(0).getIp();
         reduceTaskAlloc.addReducePreAlloc(host, reducePerNode + reduceRemainder);
-        for (int i = 1; i < job.getWorkers().size(); i++) {
+        for (int i = 0; i < job.getWorkers().size(); i++) {
             OpsNode worker = job.getWorkers().get(i);
             reduceTaskAlloc.addReducePreAlloc(worker.getIp(), reducePerNode);
         }
