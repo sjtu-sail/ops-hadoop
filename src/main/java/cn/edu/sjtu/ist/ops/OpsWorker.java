@@ -40,6 +40,7 @@ public class OpsWorker extends OpsNode {
     private WatcherThread watcher;
     private OpsShuffleHandler shuffleHandler;
     private OpsTransferer[] transferers;
+    private final int transferNum = 5;
 
     public OpsWorker(String ip) {
         super(ip);
@@ -58,7 +59,7 @@ public class OpsWorker extends OpsNode {
 
             shuffleHandler = new OpsShuffleHandler(opsConf, this);
 
-            transferers = new OpsTransferer[1];
+            transferers = new OpsTransferer[transferNum];
             for (int i = 0; i < transferers.length; i++) {
                 transferers[i] = new OpsTransferer(i, shuffleHandler, opsConf);
             }
