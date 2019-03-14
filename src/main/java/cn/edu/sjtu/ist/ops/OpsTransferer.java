@@ -101,6 +101,7 @@ class OpsTransferer extends Thread {
 
             @Override
             public void onCompleted() {
+                logger.debug("Transfer completed.");
                 HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
                         record.getRawLength());
                 ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(shuffle, hadoopPath);
@@ -162,12 +163,15 @@ class OpsTransferer extends Thread {
             e.printStackTrace();
         } finally {
             try {
-                input.close();
+                // Mark the end of requests
+                requestObserver.onCompleted();
+                if(input != null) {
+                    input.close();
+                }
             } catch (Exception e) {
+                e.printStackTrace();
                 //TODO: handle exception
             }
         }
-        // Mark the end of requests
-        requestObserver.onCompleted();
     }
 }
