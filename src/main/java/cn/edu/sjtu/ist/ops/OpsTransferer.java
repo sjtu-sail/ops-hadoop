@@ -61,7 +61,7 @@ class OpsTransferer extends Thread {
             while (!Thread.currentThread().isInterrupted()) {
                 ShuffleConf shuffle = null;
                 shuffle = shuffleHandler.getPendingShuffle();
-                // transfer(shuffle);
+                transfer(shuffle);
             }
             // server.awaitTermination();
             // channel.wait();
