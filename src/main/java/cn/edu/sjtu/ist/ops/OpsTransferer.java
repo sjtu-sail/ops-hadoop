@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import com.google.protobuf.ByteString;
 
@@ -104,7 +105,12 @@ class OpsTransferer extends Thread {
                         record.getRawLength());
                 ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(shuffle, hadoopPath);
                 shuffleHandler.addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffleC));
-                channel.shutdown();
+                try {
+                    channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    //TODO: handle exception
+                }
             }
         });
 
