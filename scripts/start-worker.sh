@@ -1,2 +1,2 @@
 #!/bin/bash
-./ops.sh worker start &>worker.log
+./ops.sh worker start &>worker.log &

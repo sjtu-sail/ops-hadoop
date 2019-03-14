@@ -1,2 +1,2 @@
 #!/bin/bash
-./ops.sh master start &>master.log
+./ops.sh master start &>master.log &
