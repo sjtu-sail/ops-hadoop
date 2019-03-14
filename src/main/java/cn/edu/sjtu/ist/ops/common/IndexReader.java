@@ -43,19 +43,25 @@ public class IndexReader {
         this.partitions = (int) length / MAP_OUTPUT_INDEX_RECORD_LENGTH;
         this.size = partitions * MAP_OUTPUT_INDEX_RECORD_LENGTH;
 
+        DataInputStream dis = null;
         try {
             ByteBuffer buf = ByteBuffer.allocate(size);
-            DataInputStream dis = new DataInputStream(new FileInputStream(this.indexFile));
+            dis = new DataInputStream(new FileInputStream(this.indexFile));
             OpsUtils.readFully(dis, buf.array(), 0, size);
             this.entries = buf.asLongBuffer();
-            logger.debug("Index file: " + indexFilePath + " size: " + this.size + " partitions: " + this.partitions);
+            // logger.debug("Index file: " + indexFilePath + " size: " + this.size + " partitions: " + this.partitions);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             // TODO: handle exception
         } catch (Exception e) {
             // TODO: handle exception
+        } finally {
+            try {
+                dis.close();
+            } catch (Exception e) {
+                //TODO: handle exception
+            }
         }
-
     }
 
     public int getPartitions() {

@@ -108,13 +108,14 @@ class OpsTransferer extends Thread {
             }
         });
 
+        BufferedInputStream input = null;
         try {
             long startOffset = record.getStartOffset();
             long partLength = record.getPartLength();
 
             logger.debug("Transfer indexRecord: " + record.toString());
 
-            BufferedInputStream input = new BufferedInputStream(
+            input = new BufferedInputStream(
                     new FileInputStream(new File(shuffle.getTask().getPath())));
             input.skip(startOffset);
 
@@ -143,7 +144,7 @@ class OpsTransferer extends Thread {
                     .setContent(ByteString.copyFrom(buffer, 0, length)).build();
             requestObserver.onNext(chunk);
             
-            input.close();
+            
         } catch (RuntimeException e) {
             // Cancel RPC
             requestObserver.onError(e);
@@ -153,6 +154,12 @@ class OpsTransferer extends Thread {
             // TODO: Handle the exception
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                input.close();
+            } catch (Exception e) {
+                //TODO: handle exception
+            }
         }
         // Mark the end of requests
         requestObserver.onCompleted();
