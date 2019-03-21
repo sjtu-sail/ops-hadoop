@@ -51,7 +51,7 @@
     - reduceNum/
       - reduceNum-\${nodeIp}-\${jobId}-\${reduceId}: num
     - mapCompleted/
-      - mapCompleted-\${nodeIp}-\${jobId}-\${mapId}: MapConf
+      - mapCompleted-\${nodeIp}-\${jobId}-\${mapId}: MapReport
     - shuffleCompleted/
       - shuffleCompleted-\${dstNodeIp}-\${jobId}-\${num}-\${mapId}: path
     - indexRecords/
