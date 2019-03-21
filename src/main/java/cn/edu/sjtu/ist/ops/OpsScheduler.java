@@ -65,9 +65,10 @@ public class OpsScheduler extends Thread {
     private Map<String, List<CollectionConf>> collectionMapping 
             = new HashMap<String, List<CollectionConf>>();
     private Map<String, Boolean> isScheduleReduce = new HashMap<String, Boolean>();
-    private OpsWatcher jobWatcher;
-    private OpsWatcher reduceWatcher;
-    private OpsWatcher indexRecordsWatcher;
+    private final OpsWatcher jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
+    private final OpsWatcher reduceWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKS_PATH);
+    private final OpsWatcher indexRecordsWatcher = new OpsWatcher(this, OpsUtils.ETCD_INDEXRECORDS_PATH);
+    private final OpsWatcher mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH);
     private OpsConf opsConf;
     private WatcherThread watcherThread;
     private HashMap<String, JobConf> jobs = new HashMap<>();
@@ -76,9 +77,6 @@ public class OpsScheduler extends Thread {
     private Gson gson = new Gson();
 
     public OpsScheduler(OpsConf conf, WatcherThread watcher) {
-        this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
-        this.reduceWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKS_PATH);
-        this.indexRecordsWatcher = new OpsWatcher(this, OpsUtils.ETCD_INDEXRECORDS_PATH);
         this.opsConf = conf;
         this.watcherThread = watcher;
         this.stopped = false;
@@ -173,6 +171,8 @@ public class OpsScheduler extends Thread {
                 this.addPendingSchedulerTask(new SchedulerTask(job, collectionList));
                 logger.info("Schedule Reduce. JobId: " + jobId + ", collectionListSize: " + collectionList.size());
             }
+        } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
+
         }
     }
 

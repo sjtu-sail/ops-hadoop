@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import cn.edu.sjtu.ist.ops.common.JobConf;
 import cn.edu.sjtu.ist.ops.common.MapConf;
+import cn.edu.sjtu.ist.ops.common.MapReport;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.CollectionConf;
@@ -169,7 +170,8 @@ public class OpsShuffleHandler extends Thread {
             }
 
         } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
-            MapConf map = gson.fromJson(value, MapConf.class);
+            MapReport report = gson.fromJson(value, MapReport.class);
+            MapConf map = new MapConf(report.getTaskId(), report.getJobId(), report.getOpsNode(), report.getPath(), report.getIndexPath());
             if (!jobs.containsKey(map.getJobId())) {
                 logger.error("JobId not found: " + map.getJobId());
                 return;
