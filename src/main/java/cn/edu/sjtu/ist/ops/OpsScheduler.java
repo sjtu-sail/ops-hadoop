@@ -32,9 +32,12 @@ import org.slf4j.LoggerFactory;
 
 import cn.edu.sjtu.ist.ops.common.CollectionConf;
 import cn.edu.sjtu.ist.ops.common.JobConf;
+import cn.edu.sjtu.ist.ops.common.MapConf;
+import cn.edu.sjtu.ist.ops.common.MapReport;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.OpsNode;
 import cn.edu.sjtu.ist.ops.common.SchedulerTask;
+import cn.edu.sjtu.ist.ops.common.SchedulerTask.SchedulerTaskType;
 import cn.edu.sjtu.ist.ops.common.ReduceConf;
 import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
 import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
@@ -55,7 +58,7 @@ public class OpsScheduler extends Thread {
     private Map<String, ManagedChannel> workerChannels = new HashMap<>();
     private Map<String, OpsInternalGrpc.OpsInternalStub> workerStubs = new HashMap<>();
     /** Maps from a job to the mapTaskAlloc */
-    private Map<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
+    // private Map<String, MapTaskAlloc> mapTaskAllocMapping = new HashMap<String, MapTaskAlloc>();
     /** Maps from a job to the reduceTaskAlloc */
     private Map<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
     /** Equals to Map<JobId, Map<ReduceId, Integer>> */
@@ -64,7 +67,11 @@ public class OpsScheduler extends Thread {
     /** Equals to Map<JobId, List<CollectionConf>> */
     private Map<String, List<CollectionConf>> collectionMapping 
             = new HashMap<String, List<CollectionConf>>();
-    private Map<String, Boolean> isScheduleReduce = new HashMap<String, Boolean>();
+    /** Equals to Map<JobId, Map<hostname, average time>> */
+    private Map<String, Map<String, Report>> mapReportMapping
+            = new HashMap<String, Map<String, Report>>();
+    private Map<String, Boolean> isScheduleReduces = new HashMap<String, Boolean>();
+    private Map<String, Boolean> isScheduleSecondMaps = new HashMap<String, Boolean>();
     private final OpsWatcher jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
     private final OpsWatcher reduceWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKS_PATH);
     private final OpsWatcher indexRecordsWatcher = new OpsWatcher(this, OpsUtils.ETCD_INDEXRECORDS_PATH);
@@ -99,13 +106,24 @@ public class OpsScheduler extends Thread {
                 JobConf job = null;
                 schedulerTask = this.getPendingSchedulerTask();
                 switch (schedulerTask.getType()) {
-                case SCHEDULE_MAP:
+                case SCHEDULE_MAP_FIRST:
                     job = schedulerTask.getPendingJob();
-                    MapTaskAlloc mapTaskAlloc = OpsScheStratagies.balancedMaps(job);
+                    // MapTaskAlloc mapTaskAlloc = OpsScheStratagies.balancedMaps(job);
+                    MapTaskAlloc mapTaskAlloc = OpsScheStratagies.firstPhaseMaps(job, 4);
 
-                    logger.debug("Put MapTaskAllocMapping and put etcd. Job: " 
+                    logger.debug("Schedule first phase maps. Put MapTaskAllocMapping to etcd. Job: " 
                             + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
-                    this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
+                    // this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
+                    EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
+
+                    break;
+                case SCHEDULE_MAP_SECOND:
+                    job = schedulerTask.getPendingJob();
+                    mapTaskAlloc = OpsScheStratagies.secondPhaseMaps(job, 4);
+
+                    logger.debug("Schedule second phase maps. Put MapTaskAllocMapping to etcd. Job: " 
+                            + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
+                    // this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
                     EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
 
                     break;
@@ -140,7 +158,7 @@ public class OpsScheduler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
-            this.addPendingSchedulerTask(new SchedulerTask(job));
+            this.addPendingSchedulerTask(new SchedulerTask(job, SchedulerTaskType.SCHEDULE_MAP_FIRST));
             logger.info("Add new job: " + job.getJobId());
         } else if (key == OpsUtils.ETCD_REDUCETASKS_PATH) {
             ReduceConf reduce = gson.fromJson(value, ReduceConf.class);
@@ -150,6 +168,10 @@ public class OpsScheduler extends Thread {
         } else if (key == OpsUtils.ETCD_INDEXRECORDS_PATH) {
             CollectionConf collection = gson.fromJson(value, CollectionConf.class);
             String jobId = collection.getJobId();
+            if(this.isScheduleReduces.containsKey(jobId)) {
+                // logger.info("Already schedule reduce jobId: " + jobId);
+                return;
+            }
             if(!this.collectionMapping.containsKey(jobId)) {
                 this.collectionMapping.put(jobId, new LinkedList<CollectionConf>());
             }
@@ -162,17 +184,41 @@ public class OpsScheduler extends Thread {
                     DEFAULT_COMPLETED_MAPS_PERCENT_FOR_SCHEDULE_REDUCE * 
                     this.jobs.get(jobId).getNumMap());
             if(collectionList.size() >= completedMapsForScheduleReduce) {
-                if(this.isScheduleReduce.containsKey(jobId)) {
-                    logger.info("Already schedule reduce jobId: " + jobId);
-                    return;
-                }
-                this.isScheduleReduce.put(jobId, true);
+                this.isScheduleReduces.put(jobId, true);
                 JobConf job = this.jobs.get(jobId);
                 this.addPendingSchedulerTask(new SchedulerTask(job, collectionList));
                 logger.info("Schedule Reduce. JobId: " + jobId + ", collectionListSize: " + collectionList.size());
             }
         } else if (key == OpsUtils.ETCD_MAPCOMPLETED_PATH) {
-
+            MapReport map = gson.fromJson(value, MapReport.class);
+            if (!jobs.containsKey(map.getJobId())) {
+                logger.error("JobId not found: " + map.getJobId());
+                return;
+            }
+            if (this.isScheduleSecondMaps.containsKey(map.getJobId())) {
+                return;
+            }
+            // Collect map reports.
+            JobConf job = jobs.get(map.getJobId());
+            if (!this.mapReportMapping.containsKey(job.getJobId())) {
+                this.mapReportMapping.put(job.getJobId(), new HashMap<String, Report>());
+            }
+            Map<String, Report> mapReports = this.mapReportMapping.get(job.getJobId());
+            String host = map.getOpsNode().getIp();
+            if (this.mapReportMapping.containsKey(host)) {
+                Report old = mapReports.get(host);
+                Report average = new Report((
+                        old.finishTime + map.getMapFinishTime()) / 2, (old.dataSize + map.getOutputDataSize()) / 2);
+                mapReports.put(host, average);
+            } else {
+                mapReports.put(host, new Report(map.getMapFinishTime(), map.getOutputDataSize()));
+            }
+            // If reach threshold, start second phase schedule.
+            if (mapReports.keySet().size() >= job.getWorkers().size()) {
+                this.isScheduleSecondMaps.put(job.getJobId(), true);
+                this.addPendingSchedulerTask(new SchedulerTask(job, SchedulerTaskType.SCHEDULE_MAP_SECOND));
+                logger.info("Job " + job.getJobId() + " start second phase maps schedule.");
+            }
         }
     }
 
@@ -234,5 +280,14 @@ public class OpsScheduler extends Thread {
         this.pendingSchedulerTasks.add(schedulerTask);
         notifyAll();
         logger.debug("Add pending SchedulerTask: " + schedulerTask.toString());
+    }
+
+    private static class Report {
+        public Long finishTime;
+        public Long dataSize;
+        public Report(Long time, Long size) {
+            this.finishTime = time;
+            this.dataSize = size;
+        }
     }
 }

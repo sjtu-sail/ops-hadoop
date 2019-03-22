@@ -26,6 +26,27 @@ import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
 
 public class OpsScheStratagies {
     // Maps scheduling stratagies
+    public static MapTaskAlloc firstPhaseMaps(JobConf job, Integer roundNum) {
+        MapTaskAlloc alloc = new MapTaskAlloc(job);
+        if (job.getNumMap() == 0) {
+            return alloc;
+        }
+        int firstMaps = job.getNumMap() / 2;
+        JobConf tmpJob = new JobConf("-1", firstMaps, 0, job.getWorkers());
+        return balancedMaps(tmpJob);
+    }
+
+    public static MapTaskAlloc secondPhaseMaps(JobConf job, Integer roundNum) {
+        MapTaskAlloc alloc = new MapTaskAlloc(job);
+        if (job.getNumMap() == 0) {
+            return alloc;
+        }
+        int firstMaps = job.getNumMap() / 2;
+        int secondMaps = job.getNumMap() - firstMaps;
+        JobConf tmpJob = new JobConf("-1", secondMaps, 0, job.getWorkers());
+        return unbalancedMaps(tmpJob);
+    }
+
     public static MapTaskAlloc balancedMaps(JobConf job) {
         // TODO: Schedule jobs here.
 

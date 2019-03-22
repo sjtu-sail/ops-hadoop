@@ -21,34 +21,34 @@ import java.util.List;
 import com.google.gson.Gson;
 
 public class SchedulerTask {
-    public static enum Type {
-        SCHEDULE_MAP, REGISTER_REDUCE, SCHEDULE_REDUCE
+    public static enum SchedulerTaskType {
+        SCHEDULE_MAP_FIRST, SCHEDULE_MAP_SECOND, REGISTER_REDUCE, SCHEDULE_REDUCE
     }
 
-    private Type type;
+    private SchedulerTaskType type;
     private JobConf pendingJob;
     private List<CollectionConf> collectionList;
     private ReduceConf pendingReduce;
     private Integer reduceNum;
 
-    public SchedulerTask(JobConf job) {
-        this.type = Type.SCHEDULE_MAP;
+    public SchedulerTask(JobConf job, SchedulerTaskType type) {
+        this.type = type;
         this.pendingJob = job;
     }
 
     public SchedulerTask(JobConf job, List<CollectionConf> collectionList) {
-        this.type = Type.SCHEDULE_REDUCE;
+        this.type = SchedulerTaskType.SCHEDULE_REDUCE;
         this.pendingJob = job;
         this.collectionList = collectionList;
     }
 
     public SchedulerTask(ReduceConf reduce, Integer reduceNum) {
-        this.type = Type.REGISTER_REDUCE;
+        this.type = SchedulerTaskType.REGISTER_REDUCE;
         this.pendingReduce = reduce;
         this.reduceNum = reduceNum;
     }
 
-    public Type getType() {
+    public SchedulerTaskType getType() {
         return this.type;
     }
 

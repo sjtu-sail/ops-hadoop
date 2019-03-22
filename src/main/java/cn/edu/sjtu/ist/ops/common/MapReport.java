@@ -39,11 +39,11 @@ public class MapReport extends MapConf {
         return new Gson().toJson(this);
     }
 
-    public Long outputDataSize() {
+    public Long getOutputDataSize() {
         return this.outputDataSize;
     }
 
-    public Long mapFinishTime() {
+    public Long getMapFinishTime() {
         return this.mapFinishTime;
     }
 }
