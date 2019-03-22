@@ -24,7 +24,8 @@ import org.apache.commons.io.FileUtils;
 
 public class OpsUtils {
     public static String ETCD_JOBS_PATH = "ops/jobs";
-    public static String ETCD_MAPTASKALLOC_PATH = "ops/mapTaskAlloc";
+    public static String ETCD_MAPFIRSTALLOC_PATH = "ops/mapTaskFirstAlloc";
+    public static String ETCD_MAPSECONDALLOC_PATH = "ops/mapTaskSecondAlloc";
     public static String ETCD_REDUCETASKALLOC_PATH = "ops/reduceTaskAlloc";
     public static String ETCD_NODES_PATH = "ops/nodes";
     public static String ETCD_INDEXRECORDS_PATH = "ops/shuffle/indexRecords";
@@ -37,8 +38,12 @@ public class OpsUtils {
         return OpsUtils.ETCD_JOBS_PATH + "/job-" + jobId + "-";
     }
 
-    public static String buildKeyMapTaskAlloc(String jobId) {
-        return OpsUtils.ETCD_MAPTASKALLOC_PATH + "/mapTaskAlloc-" + jobId + "-";
+    public static String buildKeyMapTaskFirstAlloc(String jobId) {
+        return OpsUtils.ETCD_MAPFIRSTALLOC_PATH + "/mapTaskFirstAlloc-" + jobId + "-";
+    }
+
+    public static String buildKeyMapTaskSecondAlloc(String jobId) {
+        return OpsUtils.ETCD_MAPSECONDALLOC_PATH + "/mapTaskSecondAlloc-" + jobId + "-";
     }
 
     public static String buildKeyReduceTaskAlloc(String jobId) {

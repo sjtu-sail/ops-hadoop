@@ -65,7 +65,7 @@ public class OpsShuffleHandler extends Thread {
     private final OpsConf opsConf;
     private final OpsWatcher jobWatcher;
     private final OpsWatcher mapCompletedWatcher;
-    private final OpsWatcher mapTaskAllocWatcher;
+    // private final OpsWatcher mapTaskAllocWatcher;
     private final OpsWatcher reduceTaskAllocWatcher;
     private volatile boolean stopped = false;
     private final Set<ShuffleConf> pendingShuffles = new HashSet<>();
@@ -91,7 +91,7 @@ public class OpsShuffleHandler extends Thread {
         this.jobWatcher = new OpsWatcher(this, OpsUtils.ETCD_JOBS_PATH);
         this.mapCompletedWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPCOMPLETED_PATH,
                 "/mapCompleted-" + host.getIp() + "-");
-        this.mapTaskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPTASKALLOC_PATH);
+        // this.mapTaskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_MAPTASKALLOC_PATH);
         this.reduceTaskAllocWatcher = new OpsWatcher(this, OpsUtils.ETCD_REDUCETASKALLOC_PATH);
 
         this.masterChannel = ManagedChannelBuilder.forAddress(opsConf.getMaster().getIp(), opsConf.getPortMasterGRPC())
@@ -115,7 +115,7 @@ public class OpsShuffleHandler extends Thread {
             logger.info("gRPC hadoopServer started, listening on " + this.opsConf.getPortHadoopGRPC());
             this.jobWatcher.start();
             this.mapCompletedWatcher.start();
-            this.mapTaskAllocWatcher.start();
+            // this.mapTaskAllocWatcher.start();
             this.reduceTaskAllocWatcher.start();
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
@@ -144,10 +144,10 @@ public class OpsShuffleHandler extends Thread {
             this.jobs.put(job.getJobId(), job);
             logger.info("Add new job: " + job.getJobId());
 
-        } else if(key == OpsUtils.ETCD_MAPTASKALLOC_PATH) {
-            MapTaskAlloc mapTaskAlloc = gson.fromJson(value, MapTaskAlloc.class);
-            this.mapTaskAllocMapping.put(mapTaskAlloc.getJob().getJobId(), mapTaskAlloc);
-            logger.info("Add MapTaskAlloc: " + mapTaskAlloc.toString());
+        // } else if(key == OpsUtils.ETCD_MAPTASKALLOC_PATH) {
+        //     MapTaskAlloc mapTaskAlloc = gson.fromJson(value, MapTaskAlloc.class);
+        //     this.mapTaskAllocMapping.put(mapTaskAlloc.getJob().getJobId(), mapTaskAlloc);
+        //     logger.info("Add MapTaskAlloc: " + mapTaskAlloc.toString());
 
         } else if(key == OpsUtils.ETCD_REDUCETASKALLOC_PATH) {
             ReduceTaskAlloc reduceTaskAlloc = gson.fromJson(value, ReduceTaskAlloc.class);

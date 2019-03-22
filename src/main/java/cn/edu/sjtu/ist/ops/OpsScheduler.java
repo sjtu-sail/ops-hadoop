@@ -114,7 +114,7 @@ public class OpsScheduler extends Thread {
                     logger.debug("Schedule first phase maps. Put MapTaskAllocMapping to etcd. Job: " 
                             + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
                     // this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
-                    EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
+                    EtcdService.put(OpsUtils.buildKeyMapTaskFirstAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
 
                     break;
                 case SCHEDULE_MAP_SECOND:
@@ -124,7 +124,7 @@ public class OpsScheduler extends Thread {
                     logger.debug("Schedule second phase maps. Put MapTaskAllocMapping to etcd. Job: " 
                             + job.getJobId() + " MapTaskAlloc: " + gson.toJson(mapTaskAlloc));
                     // this.mapTaskAllocMapping.put(job.getJobId(), mapTaskAlloc);
-                    EtcdService.put(OpsUtils.buildKeyMapTaskAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
+                    EtcdService.put(OpsUtils.buildKeyMapTaskSecondAlloc(job.getJobId()), gson.toJson(mapTaskAlloc));
 
                     break;
                 case SCHEDULE_REDUCE:
