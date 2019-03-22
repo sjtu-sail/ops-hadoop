@@ -43,8 +43,10 @@
 - ops/
   - jobs/
     - job-\${jobId}: JobConf
-  - mapTaskAlloc/
-    - mapTaskAlloc-\${jobId}: MapTaskAlloc
+  - mapTaskFirstAlloc/
+    - mapTaskFirstAlloc-\${jobId}: MapTaskAlloc
+  - mapTaskSecondAlloc/
+    - mapTaskSecondAlloc-\${jobId}: MapTaskAlloc
   - reduceTaskAlloc/
     - reduceTaskAlloc-\${jobId}: ReduceTaskAlloc
   - shuffle/
