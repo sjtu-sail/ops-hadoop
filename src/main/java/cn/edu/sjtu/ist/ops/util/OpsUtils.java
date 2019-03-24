@@ -63,6 +63,10 @@ public class OpsUtils {
                 + mapId + "-";
     }
 
+    public static String buildWatchKeyShuffleCompleted(String dstNodeIp, String jobId, String num) {
+        return OpsUtils.ETCD_SHUFFLECOMPLETED_PATH + "/shuffleCompleted-" + dstNodeIp + "-" + jobId + "-" + num + "-";
+    }
+
     public static String buildKeyReduceTask(String nodeIp, String jobId, String reduceId) {
         return OpsUtils.ETCD_REDUCETASKS_PATH + "/reduceTasks-" + nodeIp + "-" + jobId + "-" + reduceId + "-";
     }
