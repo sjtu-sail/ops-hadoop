@@ -32,7 +32,7 @@ public class OpsScheStratagies {
             return alloc;
         }
         int firstMaps = job.getNumMap() / 2;
-        JobConf tmpJob = new JobConf("-1", firstMaps, 0, job.getWorkers());
+        JobConf tmpJob = new JobConf(job.getJobId(), firstMaps, 0, job.getWorkers());
         return balancedMaps(tmpJob);
     }
 
@@ -43,7 +43,7 @@ public class OpsScheStratagies {
         }
         int firstMaps = job.getNumMap() / 2;
         int secondMaps = job.getNumMap() - firstMaps;
-        JobConf tmpJob = new JobConf("-1", secondMaps, 0, job.getWorkers());
+        JobConf tmpJob = new JobConf(job.getJobId(), secondMaps, 0, job.getWorkers());
         return unbalancedMaps(tmpJob);
     }
 

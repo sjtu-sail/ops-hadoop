@@ -99,6 +99,7 @@ public class OpsScheduler extends Thread {
             this.jobWatcher.start();
             this.reduceWatcher.start();
             this.indexRecordsWatcher.start();
+            this.mapCompletedWatcher.start();
             logger.info("gRPC Server started, listening on " + this.opsConf.getPortMasterGRPC());
 
             while (!stopped && !Thread.currentThread().isInterrupted()) {
