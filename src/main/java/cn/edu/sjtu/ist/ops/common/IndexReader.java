@@ -37,29 +37,37 @@ public class IndexReader {
     private final int size;
     private LongBuffer entries;
 
-    public IndexReader(String indexFilePath) {
+    public IndexReader(String indexFilePath) throws FileNotFoundException {
         this.indexFile = new File(indexFilePath);
         long length = this.indexFile.length();
         this.partitions = (int) length / MAP_OUTPUT_INDEX_RECORD_LENGTH;
         this.size = partitions * MAP_OUTPUT_INDEX_RECORD_LENGTH;
 
         DataInputStream dis = null;
+        FileInputStream input = null;
         try {
             ByteBuffer buf = ByteBuffer.allocate(size);
-            dis = new DataInputStream(new FileInputStream(this.indexFile));
+            input = new FileInputStream(this.indexFile);
+            dis = new DataInputStream(input);
             OpsUtils.readFully(dis, buf.array(), 0, size);
             this.entries = buf.asLongBuffer();
             // logger.debug("Index file: " + indexFilePath + " size: " + this.size + " partitions: " + this.partitions);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            // TODO: handle exception
+            throw new FileNotFoundException("indexReader FileNotFound.");
         } catch (Exception e) {
+            e.printStackTrace();
             // TODO: handle exception
         } finally {
             try {
-                dis.close();
+                if (input != null) {
+                    input.close();
+                }
+                if (dis != null) {
+                    dis.close();
+                }
             } catch (Exception e) {
-                //TODO: handle exception
+                e.printStackTrace();
             }
         }
     }

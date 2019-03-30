@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.google.protobuf.ByteString;
@@ -76,36 +77,37 @@ class OpsTransferer extends Thread {
         logger.info("getPendingShuffle: task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
 
-        IndexReader indexReader = new IndexReader(shuffle.getTask().getIndexPath().toString());
+        HashMap<String, IndexReader> irMap = this.shuffleHandler.getIndexReaderMap(shuffle.getTask().getJobId());
+        IndexReader indexReader = irMap.get(shuffle.getTask().getTaskId());
         IndexRecord record = indexReader.getIndex(shuffle.getNum());
-
+            
         ManagedChannel channel = ManagedChannelBuilder
-                .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
+        .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
         OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
-
+        
         String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
-                shuffle.getNum());
+        shuffle.getNum());
         StreamObserver<Chunk> requestObserver = asyncStub.transfer(new StreamObserver<ParentPath>() {
             String parentPath = "";
-
+            
             @Override
             public void onNext(ParentPath path) {
                 logger.debug("ParentPath: " + path.getPath());
                 parentPath = path.getPath();
             }
-
+            
             @Override
             public void onError(Throwable t) {
                 logger.error("gRPC error.", t.getMessage());
                 logger.info("gRPC channel break down. Re-addPendingShuffle.");
                 shuffleHandler.addPendingShuffles(shuffle);
             }
-
+            
             @Override
             public void onCompleted() {
                 logger.debug("Transfer completed.");
                 HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
-                        record.getRawLength());
+                record.getRawLength());
                 ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(shuffle, hadoopPath);
                 shuffleHandler.addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffleC));
                 try {
@@ -116,7 +118,8 @@ class OpsTransferer extends Thread {
                 }
             }
         });
-
+            
+        FileInputStream fileInput = null;
         BufferedInputStream input = null;
         try {
             long startOffset = record.getStartOffset();
@@ -124,11 +127,11 @@ class OpsTransferer extends Thread {
 
             logger.debug("Transfer indexRecord: " + record.toString());
 
-            input = new BufferedInputStream(
-                    new FileInputStream(new File(shuffle.getTask().getPath())));
+            fileInput = new FileInputStream(new File(shuffle.getTask().getPath()));
+            input = new BufferedInputStream(fileInput);
             input.skip(startOffset);
 
-            int bufferSize = 4096 * 1024;// 4M
+            int bufferSize = 1024 * 1024;// 1M
 
             byte[] buffer = new byte[bufferSize];
             int length;
@@ -152,22 +155,24 @@ class OpsTransferer extends Thread {
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
                     .setContent(ByteString.copyFrom(buffer, 0, length)).build();
             requestObserver.onNext(chunk);
-            
-            
+            requestObserver.onCompleted();
+
         } catch (RuntimeException e) {
             // Cancel RPC
+            e.printStackTrace();
             requestObserver.onError(e);
             throw e;
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            // TODO: Handle the exception
-        } catch (IOException e) {
+            requestObserver.onError(e);
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             try {
-                // Mark the end of requests
-                requestObserver.onCompleted();
-                if(input != null) {
+                if (fileInput != null) {
+                    fileInput.close();
+                }
+                if (input != null) {
                     input.close();
                 }
             } catch (Exception e) {

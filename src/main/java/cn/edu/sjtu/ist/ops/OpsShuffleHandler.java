@@ -17,6 +17,7 @@
 package cn.edu.sjtu.ist.ops;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -75,6 +76,7 @@ public class OpsShuffleHandler extends Thread {
     /** Maps from a job to the reduceTaskAlloc */
     private final HashMap<String, ReduceTaskAlloc> reduceTaskAllocMapping = new HashMap<String, ReduceTaskAlloc>();
     private final HashMap<String, List<MapConf>> completedMapsMapping = new HashMap<String, List<MapConf>>();
+    private final HashMap<String, HashMap<String, IndexReader>> indexReaderMapping = new HashMap<>();
     private final Random random = new Random();
     private Gson gson = new Gson();
 
@@ -141,6 +143,7 @@ public class OpsShuffleHandler extends Thread {
         if (key == OpsUtils.ETCD_JOBS_PATH) {
             JobConf job = gson.fromJson(value, JobConf.class);
             this.jobs.put(job.getJobId(), job);
+            this.indexReaderMapping.put(job.getJobId(), new HashMap<>());
             logger.info("Add new job: " + job.getJobId());
 
         } else if(key == OpsUtils.ETCD_MAPTASKALLOC_PATH) {
@@ -175,6 +178,15 @@ public class OpsShuffleHandler extends Thread {
                 return;
             }
             JobConf job = jobs.get(map.getJobId());
+            // Get IndexReader
+            try {
+                IndexReader indexReader = new IndexReader(map.getIndexPath().toString());
+                HashMap<String, IndexReader> irMap = this.indexReaderMapping.get(job.getJobId());
+                irMap.put(map.getTaskId(), indexReader);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             if(this.reduceTaskAllocMapping.containsKey(map.getJobId())) {
                 // Add pendingShuffles, notify transferer to shuffle data
                 ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
@@ -200,7 +212,12 @@ public class OpsShuffleHandler extends Thread {
             
 
             // Add pendingShuffleHandlerTask, collection IndexRecord and put ETCD
-            IndexReader indexReader = new IndexReader(map.getIndexPath().toString());
+            HashMap<String, IndexReader> irMap = this.indexReaderMapping.get(job.getJobId());
+            IndexReader indexReader = irMap.get(map.getTaskId());
+            if (indexReader == null) {
+                logger.error("indexReader not found. mapTaskId -> " + map.getTaskId());
+                return;
+            }
             List<IndexRecord> records = new LinkedList<>();
             for(int i = 0; i < indexReader.getPartitions(); i++) {
                 records.add(indexReader.getIndex(i));
@@ -276,6 +293,10 @@ public class OpsShuffleHandler extends Thread {
                 gson.toJson(collection));
     }
 
+    public HashMap<String, IndexReader> getIndexReaderMap(String jobId) {
+        return this.indexReaderMapping.get(jobId);
+    }
+
     private class OpsInternalService extends OpsInternalGrpc.OpsInternalImplBase {
         @Override
         public StreamObserver<Chunk> transfer(StreamObserver<ParentPath> responseObserver) {
@@ -298,9 +319,18 @@ public class OpsShuffleHandler extends Thread {
                         ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
                         byteSink.write(chunk.getContent().toByteArray());
                         logger.debug("Receive chunk: {Path: " + file.toString() + ", Length: " + file.length() + "}");
+                    } catch (IOException e){
+                        e.printStackTrace();
+
+                        logger.error("transfer error. Wait and retry.");
+                        try {
+                            sleep(3000);
+                            this.onNext(chunk);
+                        } catch (Exception ee) {
+                            //TODO: handle exception
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        // TODO: handle exception
                     }
                 }
 
