@@ -100,8 +100,8 @@ class OpsTransferer extends Thread {
             @Override
             public void onError(Throwable t) {
                 logger.error("gRPC error.", t.getMessage());
-                // logger.info("gRPC channel break down. Re-addPendingShuffle.");
-                // shuffleHandler.addPendingShuffles(shuffle);
+                logger.info("gRPC channel break down. Re-addPendingShuffle.");
+                shuffleHandler.addPendingShuffles(shuffle);
                 try {
                     channel.shutdown().awaitTermination(100, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {

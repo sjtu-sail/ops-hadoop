@@ -361,12 +361,12 @@ public class OpsShuffleHandler extends Thread {
                                 FileUtils.forceDelete(file);
                                 logger.debug("Delete the namesake file: " + file.toString());
                             }
-                            // FileUtils.forceMkdirParent(file);
-                            // file.createNewFile();
-                            // logger.debug("mkdir & create file for shuffle data: " + file.toString());
+                            FileUtils.forceMkdirParent(file);
+                            file.createNewFile();
+                            logger.debug("mkdir & create file for shuffle data: " + file.toString());
                         }
-                        // ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
-                        // byteSink.write(chunk.getContent().toByteArray());
+                        ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
+                        byteSink.write(chunk.getContent().toByteArray());
                         logger.debug("Receive chunk: {Path: " + file.toString() + ", Length: " + file.length() + "}");
                     } catch (IOException e){
                         e.printStackTrace();
