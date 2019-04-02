@@ -128,7 +128,8 @@ public class OpsShuffleHandler extends Thread {
                 shuffleHandlerTask = this.getPendingShuffleHandlerTask();
                 switch (shuffleHandlerTask.getType()) {
                 case PREPARE_SHUFFLE:
-                    this.prepareShuffle(shuffleHandlerTask.getShuffle());
+                    this.prepareShuffle(shuffleHandlerTask.getMap());
+                    break;
                 case SHUFFLECOMPLETED:
                     this.shuffleCompleted(shuffleHandlerTask.getShuffleC());
                     break;
@@ -167,12 +168,7 @@ public class OpsShuffleHandler extends Thread {
                 // If there are pendingCompletedMaps, start pre-shuffle.
                 List<MapConf> completedMapList = this.completedMapsMapping.get(jobId);
                 for (MapConf map : completedMapList) {
-                    for (OpsNode node : reduceTaskAlloc.getJob().getWorkers()) {
-                        for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
-                            ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                            addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffle));
-                        }
-                    }
+                    addPendingShuffleHandlerTask(new ShuffleHandlerTask(map));
                 }
                 this.completedMapsMapping.remove(jobId);
             }
@@ -195,13 +191,7 @@ public class OpsShuffleHandler extends Thread {
 
             if(this.reduceTaskAllocMapping.containsKey(map.getJobId())) {
                 // Add pendingShuffles, notify transferer to shuffle data
-                ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
-                for (OpsNode node : job.getWorkers()) {
-                    for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
-                        ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                        addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffle));
-                    }
-                }
+                addPendingShuffleHandlerTask(new ShuffleHandlerTask(map));
             } else {
                 // If ReducePreAlloc is not ready, wait for it.
                 if(!this.completedMapsMapping.containsKey(map.getJobId())) {
@@ -247,7 +237,7 @@ public class OpsShuffleHandler extends Thread {
 
         pendingShuffles.remove(shuffle);
 
-        logger.debug("Get pendingShuffle " + shuffle.toString());
+        logger.debug("Get pendingShuffle");
         return shuffle;
     }
 
@@ -299,31 +289,43 @@ public class OpsShuffleHandler extends Thread {
                 gson.toJson(collection));
     }
 
-    public void prepareShuffle(ShuffleConf shuffle) { 
+    public void prepareShuffle(MapConf map) { 
         FileInputStream fileInput = null;
         BufferedInputStream input = null;
         try {
-            HashMap<String, IndexReader> irMap = this.getIndexReaderMap(shuffle.getTask().getJobId());
-            IndexReader indexReader = irMap.get(shuffle.getTask().getTaskId());
-            IndexRecord record = indexReader.getIndex(shuffle.getNum());
-            
-            long startOffset = record.getStartOffset();
-            long partLength = record.getPartLength();
+            ReduceTaskAlloc reduceTaskAlloc = this.reduceTaskAllocMapping.get(map.getJobId());
+            HashMap<String, IndexReader> irMap = this.getIndexReaderMap(map.getJobId());
+            IndexReader indexReader = irMap.get(map.getTaskId());
+            fileInput = new FileInputStream(new File(map.getPath()));
+            input = new BufferedInputStream(fileInput, 1024*1024*50);
 
-            fileInput = new FileInputStream(new File(shuffle.getTask().getPath()));
-            input = new BufferedInputStream(fileInput);
-            input.skip(startOffset);
+            JobConf job = this.jobs.get(map.getJobId());
+            long pos = 0;
+            for (OpsNode node : job.getWorkers()) {
+                for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
 
-            // int bufferSize = 1024 * 1024 * 2;// 2M
+                    IndexRecord record = indexReader.getIndex(num);
+                    long startOffset = record.getStartOffset();
+                    long partLength = record.getPartLength();
+                    
+                    byte[] data = new byte[(int) partLength];
+                    int length;
 
-            byte[] data = new byte[(int) partLength];
-            int length;
-            length = input.read(data, 0, (int) partLength);
-            logger.debug("Read length: " + length);
-            input.close();
-            fileInput.close();
-
-            addPendingShuffles(new ShuffleRichConf(data, shuffle));
+                    if (pos < startOffset) {
+                        logger.debug("why skip?: " + startOffset + ", " + pos + ", " + num);
+                        logger.debug("skip: " + input.skip(startOffset - pos));
+                        pos = startOffset;
+                    }
+                    // logger.debug("(int) startOffset, (int) partLength :" + (int) startOffset +", "+ (int) partLength + ", "+startOffset +", "+ partLength + ", ");
+                    length = input.read(data, 0, (int) partLength);
+                    if(length > 0) {
+                        pos += length;
+                    }
+                    logger.debug("Read length: " + length + ", " + num);
+                    
+                    addPendingShuffles(new ShuffleRichConf(data, map, node, num));
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

@@ -26,11 +26,12 @@ public class ShuffleHandlerTask {
     private Type type;
     private ShuffleCompletedConf shuffleC;
     private CollectionConf collection;
-    private ShuffleConf shuffle;
+    private MapConf map;
+    // private ShuffleConf shuffle;
 
-    public ShuffleHandlerTask(ShuffleConf shuffle) {
+    public ShuffleHandlerTask(MapConf map) {
         this.type = Type.PREPARE_SHUFFLE;
-        this.shuffle = shuffle;
+        this.map = map;
     }
 
     public ShuffleHandlerTask(ShuffleCompletedConf shuffleC) {
@@ -55,8 +56,8 @@ public class ShuffleHandlerTask {
         return shuffleC;
     }
 
-    public ShuffleConf getShuffle() {
-        return shuffle;
+    public MapConf getMap() {
+        return map;
     }
 
     @Override

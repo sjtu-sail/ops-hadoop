@@ -35,6 +35,7 @@ import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleHandlerTask;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
+import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleRichConf;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
@@ -114,7 +115,7 @@ class OpsTransferer extends Thread {
                 logger.debug("Transfer completed.");
                 HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
                 record.getRawLength());
-                ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(shuffle, hadoopPath);
+                ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(new ShuffleConf(shuffle.getTask(), shuffle.getDstNode(), shuffle.getNum()), hadoopPath);
                 shuffleHandler.addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffleC));
                 try {
                     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
@@ -128,6 +129,7 @@ class OpsTransferer extends Thread {
         try {
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(true).setPath(path)
                     .setContent(ByteString.copyFrom(shuffle.getData(), 0, shuffle.getData().length)).build();
+            logger.debug("Transfer data. Length: " + shuffle.getData().length);
             requestObserver.onNext(chunk);
             requestObserver.onCompleted();
 
