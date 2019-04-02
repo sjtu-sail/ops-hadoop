@@ -323,12 +323,13 @@ public class OpsShuffleHandler extends Thread {
                         e.printStackTrace();
 
                         logger.error("transfer error. Wait and retry.");
-                        try {
-                            sleep(3000);
-                            this.onNext(chunk);
-                        } catch (Exception ee) {
-                            //TODO: handle exception
-                        }
+                        this.onError(e);
+                        // try {
+                        //     sleep(3000);
+                        //     this.onNext(chunk);
+                        // } catch (Exception ee) {
+                        //     //TODO: handle exception
+                        // }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -337,6 +338,7 @@ public class OpsShuffleHandler extends Thread {
                 @Override
                 public void onError(Throwable t) {
                     logger.warn("Encountered error in exchange", t);
+                    responseObserver.onError(t);
                 }
 
                 @Override

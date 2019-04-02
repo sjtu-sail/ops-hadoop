@@ -84,7 +84,7 @@ class OpsTransferer extends Thread {
         ManagedChannel channel = ManagedChannelBuilder
         .forAddress(shuffle.getDstNode().getIp(), opsConf.getPortWorkerGRPC()).usePlaintext().build();
         OpsInternalGrpc.OpsInternalStub asyncStub = OpsInternalGrpc.newStub(channel);
-        
+
         String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
         shuffle.getNum());
         StreamObserver<Chunk> requestObserver = asyncStub.transfer(new StreamObserver<ParentPath>() {
@@ -102,7 +102,7 @@ class OpsTransferer extends Thread {
                 logger.info("gRPC channel break down. Re-addPendingShuffle.");
                 shuffleHandler.addPendingShuffles(shuffle);
                 try {
-                    channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+                    channel.shutdown().awaitTermination(100, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
                     e.printStackTrace();
                     //TODO: handle exception
@@ -137,7 +137,7 @@ class OpsTransferer extends Thread {
             input = new BufferedInputStream(fileInput);
             input.skip(startOffset);
 
-            int bufferSize = 1024 * 1024;// 1M
+            int bufferSize = 1024 * 1024 * 4;// 4M
 
             byte[] buffer = new byte[bufferSize];
             int length;
@@ -158,6 +158,8 @@ class OpsTransferer extends Thread {
                 isFirstChunk = false;
             }
             length = input.read(buffer, 0, (int) partLength);
+            input.close();
+            fileInput.close();
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
                     .setContent(ByteString.copyFrom(buffer, 0, length)).build();
             requestObserver.onNext(chunk);
@@ -175,11 +177,11 @@ class OpsTransferer extends Thread {
             e.printStackTrace();
         } finally {
             try {
-                if (fileInput != null) {
-                    fileInput.close();
-                }
                 if (input != null) {
                     input.close();
+                }
+                if (fileInput != null) {
+                    fileInput.close();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
