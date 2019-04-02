@@ -20,12 +20,18 @@ import com.google.gson.Gson;
 
 public class ShuffleHandlerTask {
     public static enum Type {
-        SHUFFLECOMPLETED, COLLECTION
+        PREPARE_SHUFFLE, SHUFFLECOMPLETED, COLLECTION
     }
 
     private Type type;
     private ShuffleCompletedConf shuffleC;
     private CollectionConf collection;
+    private ShuffleConf shuffle;
+
+    public ShuffleHandlerTask(ShuffleConf shuffle) {
+        this.type = Type.PREPARE_SHUFFLE;
+        this.shuffle = shuffle;
+    }
 
     public ShuffleHandlerTask(ShuffleCompletedConf shuffleC) {
         this.type = Type.SHUFFLECOMPLETED;
@@ -47,6 +53,10 @@ public class ShuffleHandlerTask {
 
     public ShuffleCompletedConf getShuffleC() {
         return shuffleC;
+    }
+
+    public ShuffleConf getShuffle() {
+        return shuffle;
     }
 
     @Override

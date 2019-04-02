@@ -16,6 +16,9 @@
 
 package cn.edu.sjtu.ist.ops;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -45,6 +48,7 @@ import cn.edu.sjtu.ist.ops.common.IndexReader;
 import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleHandlerTask;
+import cn.edu.sjtu.ist.ops.common.ShuffleRichConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleConf;
 import cn.edu.sjtu.ist.ops.common.MapTaskAlloc;
 import cn.edu.sjtu.ist.ops.common.ReduceTaskAlloc;
@@ -68,7 +72,7 @@ public class OpsShuffleHandler extends Thread {
     private final OpsWatcher mapTaskAllocWatcher;
     private final OpsWatcher reduceTaskAllocWatcher;
     private volatile boolean stopped = false;
-    private final Set<ShuffleConf> pendingShuffles = new HashSet<>();
+    private final Set<ShuffleRichConf> pendingShuffles = new HashSet<>();
     private final Set<ShuffleHandlerTask> pendingShuffleHandlerTasks = new HashSet<>();
     private final HashMap<String, JobConf> jobs = new HashMap<>();
     /** Maps from a job to the mapTaskAlloc */
@@ -123,6 +127,8 @@ public class OpsShuffleHandler extends Thread {
                 ShuffleHandlerTask shuffleHandlerTask = null;
                 shuffleHandlerTask = this.getPendingShuffleHandlerTask();
                 switch (shuffleHandlerTask.getType()) {
+                case PREPARE_SHUFFLE:
+                    this.prepareShuffle(shuffleHandlerTask.getShuffle());
                 case SHUFFLECOMPLETED:
                     this.shuffleCompleted(shuffleHandlerTask.getShuffleC());
                     break;
@@ -164,7 +170,7 @@ public class OpsShuffleHandler extends Thread {
                     for (OpsNode node : reduceTaskAlloc.getJob().getWorkers()) {
                         for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
                             ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                            addPendingShuffles(shuffle);
+                            addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffle));
                         }
                     }
                 }
@@ -193,7 +199,7 @@ public class OpsShuffleHandler extends Thread {
                 for (OpsNode node : job.getWorkers()) {
                     for (Integer num : reduceTaskAlloc.getReducePreAllocOrder(node.getIp())) {
                         ShuffleConf shuffle = new ShuffleConf(map, node, num);
-                        addPendingShuffles(shuffle);
+                        addPendingShuffleHandlerTask(new ShuffleHandlerTask(shuffle));
                     }
                 }
             } else {
@@ -227,13 +233,13 @@ public class OpsShuffleHandler extends Thread {
         }
     }
 
-    public synchronized ShuffleConf getPendingShuffle() throws InterruptedException {
+    public synchronized ShuffleRichConf getPendingShuffle() throws InterruptedException {
         while (pendingShuffles.isEmpty()) {
             wait();
         }
 
-        ShuffleConf shuffle = null;
-        Iterator<ShuffleConf> iter = pendingShuffles.iterator();
+        ShuffleRichConf shuffle = null;
+        Iterator<ShuffleRichConf> iter = pendingShuffles.iterator();
         int numToPick = random.nextInt(pendingShuffles.size());
         for (int i = 0; i <= numToPick; ++i) {
             shuffle = iter.next();
@@ -267,7 +273,7 @@ public class OpsShuffleHandler extends Thread {
         return this.jobs.get(jobId);
     }
 
-    public synchronized void addPendingShuffles(ShuffleConf shuffle) {
+    public synchronized void addPendingShuffles(ShuffleRichConf shuffle) {
         pendingShuffles.add(shuffle);
         logger.debug("Add pendingShuffles task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
@@ -293,6 +299,47 @@ public class OpsShuffleHandler extends Thread {
                 gson.toJson(collection));
     }
 
+    public void prepareShuffle(ShuffleConf shuffle) { 
+        FileInputStream fileInput = null;
+        BufferedInputStream input = null;
+        try {
+            HashMap<String, IndexReader> irMap = this.getIndexReaderMap(shuffle.getTask().getJobId());
+            IndexReader indexReader = irMap.get(shuffle.getTask().getTaskId());
+            IndexRecord record = indexReader.getIndex(shuffle.getNum());
+            
+            long startOffset = record.getStartOffset();
+            long partLength = record.getPartLength();
+
+            fileInput = new FileInputStream(new File(shuffle.getTask().getPath()));
+            input = new BufferedInputStream(fileInput);
+            input.skip(startOffset);
+
+            // int bufferSize = 1024 * 1024 * 2;// 2M
+
+            byte[] data = new byte[(int) partLength];
+            int length;
+            length = input.read(data, 0, (int) partLength);
+            logger.debug("Read length: " + length);
+            input.close();
+            fileInput.close();
+
+            addPendingShuffles(new ShuffleRichConf(data, shuffle));
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (input != null) {
+                    input.close();
+                }
+                if (fileInput != null) {
+                    fileInput.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public HashMap<String, IndexReader> getIndexReaderMap(String jobId) {
         return this.indexReaderMapping.get(jobId);
     }
@@ -312,12 +359,12 @@ public class OpsShuffleHandler extends Thread {
                                 FileUtils.forceDelete(file);
                                 logger.debug("Delete the namesake file: " + file.toString());
                             }
-                            FileUtils.forceMkdirParent(file);
-                            file.createNewFile();
-                            logger.debug("mkdir & create file for shuffle data: " + file.toString());
+                            // FileUtils.forceMkdirParent(file);
+                            // file.createNewFile();
+                            // logger.debug("mkdir & create file for shuffle data: " + file.toString());
                         }
-                        ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
-                        byteSink.write(chunk.getContent().toByteArray());
+                        // ByteSink byteSink = Files.asByteSink(file, FileWriteMode.APPEND);
+                        // byteSink.write(chunk.getContent().toByteArray());
                         logger.debug("Receive chunk: {Path: " + file.toString() + ", Length: " + file.length() + "}");
                     } catch (IOException e){
                         e.printStackTrace();

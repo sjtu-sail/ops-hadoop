@@ -35,7 +35,7 @@ import cn.edu.sjtu.ist.ops.common.IndexRecord;
 import cn.edu.sjtu.ist.ops.common.OpsConf;
 import cn.edu.sjtu.ist.ops.common.ShuffleHandlerTask;
 import cn.edu.sjtu.ist.ops.common.ShuffleCompletedConf;
-import cn.edu.sjtu.ist.ops.common.ShuffleConf;
+import cn.edu.sjtu.ist.ops.common.ShuffleRichConf;
 import cn.edu.sjtu.ist.ops.util.OpsUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -61,7 +61,7 @@ class OpsTransferer extends Thread {
             logger.info("ops-transferer-[" + this.num + "] started");
 
             while (!Thread.currentThread().isInterrupted()) {
-                ShuffleConf shuffle = null;
+                ShuffleRichConf shuffle = null;
                 shuffle = shuffleHandler.getPendingShuffle();
                 transfer(shuffle);
             }
@@ -72,7 +72,7 @@ class OpsTransferer extends Thread {
         }
     }
 
-    private void transfer(ShuffleConf shuffle) throws IllegalArgumentException {
+    private void transfer(ShuffleRichConf shuffle) throws IllegalArgumentException {
 
         logger.info("getPendingShuffle: task " + shuffle.getTask().getTaskId() + " to node "
                 + shuffle.getDstNode().getIp());
@@ -99,8 +99,8 @@ class OpsTransferer extends Thread {
             @Override
             public void onError(Throwable t) {
                 logger.error("gRPC error.", t.getMessage());
-                logger.info("gRPC channel break down. Re-addPendingShuffle.");
-                shuffleHandler.addPendingShuffles(shuffle);
+                // logger.info("gRPC channel break down. Re-addPendingShuffle.");
+                // shuffleHandler.addPendingShuffles(shuffle);
                 try {
                     channel.shutdown().awaitTermination(100, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
@@ -125,43 +125,9 @@ class OpsTransferer extends Thread {
             }
         });
             
-        FileInputStream fileInput = null;
-        BufferedInputStream input = null;
         try {
-            long startOffset = record.getStartOffset();
-            long partLength = record.getPartLength();
-
-            logger.debug("Transfer indexRecord: " + record.toString());
-
-            fileInput = new FileInputStream(new File(shuffle.getTask().getPath()));
-            input = new BufferedInputStream(fileInput);
-            input.skip(startOffset);
-
-            int bufferSize = 1024 * 1024 * 4;// 4M
-
-            byte[] buffer = new byte[bufferSize];
-            int length;
-            boolean isFirstChunk = true;
-            while (true) {
-                if (partLength < bufferSize) {
-                    break;
-                }
-                length = input.read(buffer, 0, bufferSize);
-                partLength -= length;
-                if (length == -1) {
-                    input.close();
-                    throw new IllegalArgumentException("Unexpected file length.");
-                }
-                Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
-                        .setContent(ByteString.copyFrom(buffer, 0, length)).build();
-                requestObserver.onNext(chunk);
-                isFirstChunk = false;
-            }
-            length = input.read(buffer, 0, (int) partLength);
-            input.close();
-            fileInput.close();
-            Chunk chunk = Chunk.newBuilder().setIsFirstChunk(isFirstChunk).setPath(path)
-                    .setContent(ByteString.copyFrom(buffer, 0, length)).build();
+            Chunk chunk = Chunk.newBuilder().setIsFirstChunk(true).setPath(path)
+                    .setContent(ByteString.copyFrom(shuffle.getData(), 0, shuffle.getData().length)).build();
             requestObserver.onNext(chunk);
             requestObserver.onCompleted();
 
@@ -170,23 +136,8 @@ class OpsTransferer extends Thread {
             e.printStackTrace();
             requestObserver.onError(e);
             throw e;
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            requestObserver.onError(e);
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (input != null) {
-                    input.close();
-                }
-                if (fileInput != null) {
-                    fileInput.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                //TODO: handle exception
-            }
         }
     }
 }
