@@ -43,7 +43,7 @@ cd ..
 if [[ -f target/ops.jar ]]; then
 	case $1 in
 	master | worker | client)
-		export CLASSPATH=target/ops.jar
+		export CLASSPATH=target/ops.jar:target/lib/*
 		params=($@)
 		exec ./scripts/ops-$1.sh ${params[@]:1}
 		;;
