@@ -25,6 +25,7 @@ public class JobConf {
     private final int numMap;
     private final int numReduce;
     private final List<OpsNode> workers;
+    private String masterHost = "";
 
     public JobConf(String id, int map, int reduce, List<OpsNode> nodes) {
         this.jobId = id;
@@ -33,7 +34,15 @@ public class JobConf {
         this.workers = nodes;
     }
 
-    public String getJobId() {
+    public String getMasterHost() {
+		return masterHost;
+	}
+
+	public void setMasterHost(String masterHost) {
+		this.masterHost = masterHost;
+	}
+
+	public String getJobId() {
         return this.jobId;
     }
 

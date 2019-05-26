@@ -92,7 +92,7 @@ public class OpsScheStratagies {
         }
 
         return reduceTaskAlloc;
-    } 
+    }
 
     public static ReduceTaskAlloc unbalancedReduces(JobConf job, List<CollectionConf> CollectionList) {
         // reduce
