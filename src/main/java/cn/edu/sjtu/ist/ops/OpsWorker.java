@@ -40,7 +40,7 @@ public class OpsWorker extends OpsNode {
     private WatcherThread watcher;
     private OpsShuffleHandler shuffleHandler;
     private OpsTransferer[] transferers;
-    private final int transferNum = 1;
+    private final int transferNum = 5;
 
     public OpsWorker(String ip) {
         super(ip);
