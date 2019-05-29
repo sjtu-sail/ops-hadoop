@@ -30,7 +30,7 @@ public class HeartbeatThread extends Thread {
         while (true) {
             EtcdService.register(this.prefix, this.value);
             try {
-                Thread.sleep(5000);
+                Thread.sleep(60000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
