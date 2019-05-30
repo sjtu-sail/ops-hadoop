@@ -130,7 +130,14 @@ class OpsTransferer extends Thread {
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(true).setPath(path)
                     .setContent(ByteString.copyFrom(shuffle.getData(), 0, shuffle.getData().length)).build();
             logger.debug("Transfer data. Length: " + shuffle.getData().length);
+
+            long start = System.currentTimeMillis();
+
             requestObserver.onNext(chunk);
+
+            long duration = System.currentTimeMillis() - start;
+            System.out.println("[OPS]-" + shuffle.getTask().getJobId() + "-" + start + "-" + duration + "-" + shuffle.getData().length);
+            
             requestObserver.onCompleted();
 
         } catch (RuntimeException e) {

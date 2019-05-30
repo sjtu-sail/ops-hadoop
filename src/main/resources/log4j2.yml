@@ -22,7 +22,7 @@ Configuration:
   Loggers:
     logger:
       - name: cn.edu.sjtu.ist.ops
-        level: debug
+        level: info
         additivity: false
         AppenderRef:
           - ref: STDOUT
