@@ -136,8 +136,8 @@ class OpsTransferer extends Thread {
             requestObserver.onNext(chunk);
 
             long duration = System.currentTimeMillis() - start;
-            System.out.println("[OPS]-" + shuffle.getTask().getJobId() + "-" + start + "-" + duration + "-" + shuffle.getData().length);
-            
+            logger.info("[OPS]-" + shuffle.getTask().getJobId() + "-" + start + "-" + duration + "-" + shuffle.getData().length);
+
             requestObserver.onCompleted();
 
         } catch (RuntimeException e) {

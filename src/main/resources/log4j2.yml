@@ -4,7 +4,7 @@ Configuration:
   properties:
     property:
       name: filename
-      value: logs/ops.log
+      value: /expose/ops.log
   appenders:
     Console:
       name: STDOUT
@@ -22,12 +22,12 @@ Configuration:
   Loggers:
     logger:
       - name: cn.edu.sjtu.ist.ops
-        level: info
+        level: debug
         additivity: false
         AppenderRef:
           - ref: STDOUT
-          - ref: File
+          # - ref: File
     Root:
-      level: error
+      level: info
       AppenderRef:
-        - ref: STDOUT
+        - ref: File
