@@ -18,7 +18,7 @@ Configuration:
         Pattern: "%d %p %C{1.} [%t] %m%n"
       Filters:
         ThresholdFilter:
-          level: debug
+          level: info
   Loggers:
     logger:
       - name: cn.edu.sjtu.ist.ops
@@ -26,7 +26,7 @@ Configuration:
         additivity: false
         AppenderRef:
           - ref: STDOUT
-          # - ref: File
+          - ref: File
     Root:
       level: info
       AppenderRef:
