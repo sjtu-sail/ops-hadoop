@@ -88,6 +88,9 @@ class OpsTransferer extends Thread {
 
         String path = OpsUtils.getMapOutputPath(shuffle.getTask().getJobId(), shuffle.getTask().getTaskId(),
         shuffle.getNum());
+
+        long start = System.currentTimeMillis();
+
         StreamObserver<Chunk> requestObserver = asyncStub.transfer(new StreamObserver<ParentPath>() {
             String parentPath = "";
             
@@ -113,6 +116,10 @@ class OpsTransferer extends Thread {
             @Override
             public void onCompleted() {
                 logger.debug("Transfer completed.");
+
+                long duration = System.currentTimeMillis() - start;
+                logger.info("[OPS]-" + shuffle.getTask().getJobId() + "-" + start + "-" + duration + "-" + shuffle.getData().length);
+            
                 HadoopPath hadoopPath = new HadoopPath(new File(parentPath, path).toString(), record.getPartLength(),
                 record.getRawLength());
                 ShuffleCompletedConf shuffleC = new ShuffleCompletedConf(new ShuffleConf(shuffle.getTask(), shuffle.getDstNode(), shuffle.getNum()), hadoopPath);
@@ -130,14 +137,7 @@ class OpsTransferer extends Thread {
             Chunk chunk = Chunk.newBuilder().setIsFirstChunk(true).setPath(path)
                     .setContent(ByteString.copyFrom(shuffle.getData(), 0, shuffle.getData().length)).build();
             logger.debug("Transfer data. Length: " + shuffle.getData().length);
-
-            long start = System.currentTimeMillis();
-
             requestObserver.onNext(chunk);
-
-            long duration = System.currentTimeMillis() - start;
-            logger.info("[OPS]-" + shuffle.getTask().getJobId() + "-" + start + "-" + duration + "-" + shuffle.getData().length);
-
             requestObserver.onCompleted();
 
         } catch (RuntimeException e) {
