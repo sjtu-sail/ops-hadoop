@@ -15,7 +15,8 @@ Configuration:
       name: File
       fileName: ${filename}
       PatternLayout:
-        Pattern: "%d %p %C{1.} [%t] %m%n"
+        # Pattern: "%d %p %C{1.} [%t] %m%n"
+        Pattern: "%N-%m%n"
       Filters:
         ThresholdFilter:
           level: info
