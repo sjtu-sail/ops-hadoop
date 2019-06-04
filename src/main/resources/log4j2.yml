@@ -4,7 +4,7 @@ Configuration:
   properties:
     property:
       name: filename
-      value: /expose/ops.log
+      value: /root/ops.log
   appenders:
     Console:
       name: STDOUT
